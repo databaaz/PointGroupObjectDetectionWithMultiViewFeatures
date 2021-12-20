@@ -8,10 +8,13 @@ import torch.optim as optim
 import time, sys, os, random
 from tensorboardX import SummaryWriter
 import numpy as np
+from torch.utils.data import DataLoader
 
 from util.config import cfg
 from util.log import logger
 import util.utils as utils
+from data.scannetv2_inst import collate_train, collate_val
+
 
 def init():
     # copy important files to backup
@@ -26,8 +29,8 @@ def init():
     logger.info(cfg)
 
     # summary writer
-    global writer
-    writer = SummaryWriter(cfg.exp_path)
+    # global writer
+    # writer = SummaryWriter(cfg.exp_path, flush_secs=1)
 
     # random seed
     random.seed(cfg.manual_seed)
@@ -35,7 +38,8 @@ def init():
     torch.manual_seed(cfg.manual_seed)
     torch.cuda.manual_seed_all(cfg.manual_seed)
 
-def train_epoch(train_loader, model, model_fn, optimizer, epoch):
+
+def train_epoch(train_loader, model, model_fn, optimizer, epoch, writer):
     iter_time = utils.AverageMeter()
     data_time = utils.AverageMeter()
     am_dict = {}
@@ -83,17 +87,18 @@ def train_epoch(train_loader, model, model_fn, optimizer, epoch):
              data_time.val, data_time.avg, iter_time.val, iter_time.avg, remain_time=remain_time))
         if (i == len(train_loader) - 1): print()
 
-
-    logger.info("epoch: {}/{}, train loss: {:.4f}, time: {}s".format(epoch, cfg.epochs, am_dict['loss'].avg, time.time() - start_epoch))
+    logger.info("epoch: {}/{}, train loss: {:.4f}, time: {}s".format(epoch, cfg.epochs, am_dict['loss'].avg,
+                                                                     time.time() - start_epoch))
 
     utils.checkpoint_save(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], epoch, cfg.save_freq, use_cuda)
 
     for k in am_dict.keys():
         if k in visual_dict.keys():
-            writer.add_scalar(k+'_train', am_dict[k].avg, epoch)
+            writer.add_scalar(f'train/{k}', am_dict[k].avg, epoch)
+    writer.flush()
 
 
-def eval_epoch(val_loader, model, model_fn, epoch):
+def eval_epoch(val_loader, model, model_fn, epoch, writer):
     logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
     am_dict = {}
 
@@ -112,14 +117,17 @@ def eval_epoch(val_loader, model, model_fn, epoch):
                 am_dict[k].update(v[0], v[1])
 
             ##### print
-            sys.stdout.write("\riter: {}/{} loss: {:.4f}({:.4f})".format(i + 1, len(val_loader), am_dict['loss'].val, am_dict['loss'].avg))
+            sys.stdout.write("\riter: {}/{} loss: {:.4f}({:.4f})".format(i + 1, len(val_loader), am_dict['loss'].val,
+                                                                         am_dict['loss'].avg))
             if (i == len(val_loader) - 1): print()
 
-        logger.info("epoch: {}/{}, val loss: {:.4f}, time: {}s".format(epoch, cfg.epochs, am_dict['loss'].avg, time.time() - start_epoch))
+        logger.info("epoch: {}/{}, val loss: {:.4f}, time: {}s".format(epoch, cfg.epochs, am_dict['loss'].avg,
+                                                                       time.time() - start_epoch))
 
         for k in am_dict.keys():
             if k in visual_dict.keys():
-                writer.add_scalar(k + '_eval', am_dict[k].avg, epoch)
+                writer.add_scalar(f'eval/{k}', am_dict[k].avg, epoch)
+        writer.flush()
 
 
 if __name__ == '__main__':
@@ -155,28 +163,53 @@ if __name__ == '__main__':
     if cfg.optim == 'Adam':
         optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr)
     elif cfg.optim == 'SGD':
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr, momentum=cfg.momentum, weight_decay=cfg.weight_decay)
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr, momentum=cfg.momentum,
+                              weight_decay=cfg.weight_decay)
 
     ##### model_fn (criterion)
     model_fn = model_fn_decorator()
+
+    writer = SummaryWriter(os.path.join(cfg.exp_path, 'logs'), flush_secs=1)
 
     ##### dataset
     if cfg.dataset == 'scannetv2':
         if data_name == 'scannet':
             import data.scannetv2_inst
-            dataset = data.scannetv2_inst.Dataset()
-            dataset.trainLoader()
-            dataset.valLoader()
+
+            train_dataset = data.scannetv2_inst.Dataset(split='train')
+            val_dataset = data.scannetv2_inst.Dataset(split='val')
+            # dataset.trainLoader()
+            # dataset.valLoader()
+            train_data_loader = DataLoader(train_dataset, batch_size=cfg.batch_size,
+                                           collate_fn=lambda batch: collate_train(batch, cfg.scale, cfg.full_scale,
+                                                                                  voxel_mode=cfg.mode,
+                                                                                  max_npoint=cfg.max_npoint,
+                                                                                  batch_size=cfg.batch_size),
+                                           num_workers=cfg.train_workers, shuffle=True, sampler=None, drop_last=True,
+                                           pin_memory=True)
+
+            val_data_loader = DataLoader(val_dataset, batch_size=cfg.batch_size,
+                                         collate_fn=lambda batch: collate_val(batch, cfg.scale, cfg.full_scale,
+                                                                              voxel_mode=cfg.mode,
+                                                                              max_npoint=cfg.max_npoint,
+                                                                              batch_size=cfg.batch_size),
+                                         num_workers=cfg.train_workers, shuffle=False, sampler=None, drop_last=True,
+                                         pin_memory=True)
+
+
         else:
             print("Error: no data loader - " + data_name)
             exit(0)
 
     ##### resume
-    start_epoch = utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda)      # resume from the latest epoch, or specify the epoch to restore
+    start_epoch = utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5],
+                                           use_cuda)  # resume from the latest epoch, or specify the epoch to restore
 
     ##### train and val
     for epoch in range(start_epoch, cfg.epochs + 1):
-        train_epoch(dataset.train_data_loader, model, model_fn, optimizer, epoch)
+        train_epoch(train_data_loader, model, model_fn, optimizer, epoch, writer)
 
         if utils.is_multiple(epoch, cfg.save_freq) or utils.is_power2(epoch):
-            eval_epoch(dataset.val_data_loader, model, model_fn, epoch)
+            eval_epoch(val_data_loader, model, model_fn, epoch, writer)
+
+        writer.close()

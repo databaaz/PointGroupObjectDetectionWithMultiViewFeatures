@@ -23,6 +23,7 @@ class Instance(object):
         self.instance_id     = int(instance_id)
         self.label_id    = int(self.get_label_id(instance_id))
         self.vert_count = int(self.get_instance_verts(mesh_vert_instances, instance_id))
+        self.vertices = self.get_instance_vertices(mesh_vert_instances, instance_id)
 
     def get_label_id(self, instance_id):
         return int(instance_id // 1000)
@@ -40,7 +41,11 @@ class Instance(object):
         dict["vert_count"]  = self.vert_count
         dict["med_dist"]    = self.med_dist
         dict["dist_conf"]   = self.dist_conf
+        dict["vertices"]    = self.vertices
         return dict
+
+    def get_instance_vertices(self, mesh_vert_instances, instance_id):
+        return np.where(mesh_vert_instances == instance_id)[0]
 
     def from_json(self, data):
         self.instance_id     = int(data["instance_id"])

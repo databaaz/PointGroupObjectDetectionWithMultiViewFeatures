@@ -9,15 +9,26 @@ import numpy as np
 import random
 import os
 
+from torch.utils.data import DataLoader
+
 from util.config import cfg
+
 cfg.task = 'test'
 from util.log import logger
 import util.utils as utils
 import util.eval as eval
+from data.scannetv2_inst import collate_test
+from util.map.ap_helper import APCalculator
+import itertools
+import json
+
 
 def init():
     global result_dir
-    result_dir = os.path.join(cfg.exp_path, 'result', 'epoch{}_nmst{}_scoret{}_npointt{}'.format(cfg.test_epoch, cfg.TEST_NMS_THRESH, cfg.TEST_SCORE_THRESH, cfg.TEST_NPOINT_THRESH), cfg.split)
+    result_dir = os.path.join(cfg.exp_path, 'result',
+                              'epoch{}_nmst{}_scoret{}_npointt{}'.format(cfg.test_epoch, cfg.TEST_NMS_THRESH,
+                                                                         cfg.TEST_SCORE_THRESH, cfg.TEST_NPOINT_THRESH),
+                              cfg.split)
     backup_dir = os.path.join(result_dir, 'backup_files')
     os.makedirs(backup_dir, exist_ok=True)
     os.makedirs(os.path.join(result_dir, 'predicted_masks'), exist_ok=True)
@@ -43,21 +54,37 @@ def test(model, model_fn, data_name, epoch):
     if cfg.dataset == 'scannetv2':
         if data_name == 'scannet':
             from data.scannetv2_inst import Dataset
-            dataset = Dataset(test=True)
-            dataset.testLoader()
+            test_dataset = Dataset(split='val', test_mode=True)
+            test_dataloader = DataLoader(test_dataset, batch_size=1,
+                                         collate_fn=lambda batch: collate_test(batch, cfg.scale, cfg.full_scale,
+                                                                               voxel_mode=cfg.mode,
+                                                                               test_split=cfg.split,
+                                                                               batch_size=cfg.batch_size),
+                                         num_workers=cfg.test_workers,
+                                         shuffle=False, drop_last=False, pin_memory=True)
         else:
             print("Error: no data loader - " + data_name)
             exit(0)
-    dataloader = dataset.test_data_loader
 
     with torch.no_grad():
         model = model.eval()
         start = time.time()
 
         matches = {}
-        for i, batch in enumerate(dataloader):
+
+        ap_calculator = APCalculator(ap_iou_thresh=0.5)
+
+        # pred_all: map of {img_id: [(classname, bbox, score)]}
+        # gt_all: map of {img_id: [(classname, bbox)]}
+
+        for i, batch in enumerate(test_dataloader):  # itertools
+            print(i)
             N = batch['feats'].shape[0]
-            test_scene_name = dataset.test_file_names[int(batch['id'][0])].split('/')[-1][:12]
+            point_coords = batch['point_coords']#.cpu.numpy()
+            logger.info(f"point_coords shape:{point_coords.shape}")
+            # test_scene_name = dataset.test_file_names[int(batch['id'][0])].split('/')[-1][:12]
+            test_scene_name = test_dataset.file_names[i].split('/')[-1][:12]
+            print(test_scene_name)
 
             start1 = time.time()
             preds = model_fn(batch, model, epoch)
@@ -67,19 +94,21 @@ def test(model, model_fn, data_name, epoch):
             semantic_scores = preds['semantic']  # (N, nClass=20) float32, cuda
             semantic_pred = semantic_scores.max(1)[1]  # (N) long, cuda
 
-            pt_offsets = preds['pt_offsets']    # (N, 3), float32, cuda
+            pt_offsets = preds['pt_offsets']  # (N, 3), float32, cuda
 
             if (epoch > cfg.prepare_epochs):
-                scores = preds['score']   # (nProposal, 1) float, cuda
+                scores = preds['score']  # (nProposal, 1) float, cuda
                 scores_pred = torch.sigmoid(scores.view(-1))
 
                 proposals_idx, proposals_offset = preds['proposals']
                 # proposals_idx: (sumNPoint, 2), int, cpu, dim 0 for cluster_id, dim 1 for corresponding point idxs in N
                 # proposals_offset: (nProposal + 1), int, cpu
-                proposals_pred = torch.zeros((proposals_offset.shape[0] - 1, N), dtype=torch.int, device=scores_pred.device) # (nProposal, N), int, cuda
+                proposals_pred = torch.zeros((proposals_offset.shape[0] - 1, N), dtype=torch.int,
+                                             device=scores_pred.device)  # (nProposal, N), int, cuda
                 proposals_pred[proposals_idx[:, 0].long(), proposals_idx[:, 1].long()] = 1
 
-                semantic_id = torch.tensor(semantic_label_idx, device=scores_pred.device)[semantic_pred[proposals_idx[:, 1][proposals_offset[:-1].long()].long()]] # (nProposal), long
+                semantic_id = torch.tensor(semantic_label_idx, device=scores_pred.device)[
+                    semantic_pred[proposals_idx[:, 1][proposals_offset[:-1].long()].long()]]  # (nProposal), long
 
                 ##### score threshold
                 score_mask = (scores_pred > cfg.TEST_SCORE_THRESH)
@@ -99,17 +128,105 @@ def test(model, model_fn, data_name, epoch):
                     pick_idxs = np.empty(0)
                 else:
                     proposals_pred_f = proposals_pred.float()  # (nProposal, N), float, cuda
-                    intersection = torch.mm(proposals_pred_f, proposals_pred_f.t())  # (nProposal, nProposal), float, cuda
+                    intersection = torch.mm(proposals_pred_f,
+                                            proposals_pred_f.t())  # (nProposal, nProposal), float, cuda
                     proposals_pointnum = proposals_pred_f.sum(1)  # (nProposal), float, cuda
                     proposals_pn_h = proposals_pointnum.unsqueeze(-1).repeat(1, proposals_pointnum.shape[0])
                     proposals_pn_v = proposals_pointnum.unsqueeze(0).repeat(proposals_pointnum.shape[0], 1)
                     cross_ious = intersection / (proposals_pn_h + proposals_pn_v - intersection)
-                    pick_idxs = non_max_suppression(cross_ious.cpu().numpy(), scores_pred.cpu().numpy(), cfg.TEST_NMS_THRESH)  # int, (nCluster, N)
+                    pick_idxs = non_max_suppression(cross_ious.cpu().numpy(), scores_pred.cpu().numpy(),
+                                                    cfg.TEST_NMS_THRESH)  # int, (nCluster, N)
                 clusters = proposals_pred[pick_idxs]
                 cluster_scores = scores_pred[pick_idxs]
                 cluster_semantic_id = semantic_id[pick_idxs]
 
                 nclusters = clusters.shape[0]
+
+                #bounding box 
+                b_boxes = []
+                b_boxes_map = []
+                scores = cluster_scores.cpu().numpy()
+                labels = cluster_semantic_id.cpu().numpy()
+                clusters_np = clusters.cpu().numpy()
+                for j,c in enumerate(clusters_np):
+                    # logger.info(f"points in cluster from matrix {c.sum()}")
+                    cluster_points = point_coords[c.astype(bool)]
+                    # logger.info(f"points in cluster: {cluster_points.shape}")
+                    center_x,center_y,center_z = cluster_points.mean(0)
+
+                    # import pdb
+                    # pdb.set_trace()
+
+                    x_max,y_max,z_max = cluster_points.max(0)
+                    x_min,y_min,z_min = cluster_points.min(0)
+                    length = abs(x_max-x_min)
+                    breadth = abs(y_max-y_min)
+                    height = abs(z_max-z_min)
+                    # logger.info(f"max_c:{(x_max,y_max,z_max)}\nmin_c:{(x_min,y_min,z_min)}\ncenter_c={center_x,center_y,center_z}")
+                    bbox={"center_x":center_x,
+                    "center_y":center_y,
+                    "center_z":center_z,
+                    "length":length,
+                    "breadth":breadth,
+                    "height":height,
+                    "label":labels[j],
+                    "score":scores[j]}
+
+                    b_boxes.append(bbox)
+                    x_000 = [center_x - length/2, center_y - breadth/2, center_z-height/2]
+                    x_100 = [center_x + length/2, center_y - breadth/2, center_z-height/2]
+                    x_110 = [center_x + length/2, center_y + breadth/2, center_z-height/2]
+                    x_010 = [center_x - length/2, center_y + breadth/2, center_z-height/2]
+                    x_001 = [center_x - length/2, center_y - breadth/2, center_z+height/2]
+                    x_101 = [center_x + length/2, center_y - breadth/2, center_z+height/2]
+                    x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
+                    x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
+
+                    b_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001]), bbox['score']))
+
+
+                # ground truth boxes
+                gt_file = os.path.join(cfg.data_root, cfg.dataset, cfg.split + '_gt', test_scene_name + '.txt')
+                gt_instances = eval.get_gt_instances_from_file(gt_file)
+                n_instances = [len(gt_instances[k]) for k in gt_instances]
+                # logger.info(f"no. of gt_instances = {sum(n_instances)}")
+                gt_boxes = []
+                gt_boxes_map = []
+                for k in gt_instances:
+                    instances = gt_instances[k]
+                    if len(instances)==0:
+                        continue
+                    for inst in instances:
+                        vertice_indices = inst['vertices']
+                        # logger.info(f"n_vertices = {len(vertice_indices)}")
+                        vertice_coords = point_coords[vertice_indices]
+                        # logger.info(f"instance coords shape: {vertice_coords.shape}")
+                        center_x,center_y,center_z = vertice_coords.mean(0)
+                        x_max,y_max,z_max = vertice_coords.max(0)
+                        x_min,y_min,z_min = vertice_coords.min(0)
+                        length = abs(x_max-x_min)
+                        breadth = abs(y_max-y_min)
+                        height = abs(z_max-z_min)
+                        bbox={"center_x":center_x,
+                            "center_y":center_y,
+                            "center_z":center_z,
+                            "length":length,
+                            "breadth":breadth,
+                            "height":height,
+                            "label":inst["label_id"]}
+
+                        gt_boxes.append(bbox)
+                        x_000 = [center_x - length/2, center_y - breadth/2, center_z-height/2]
+                        x_100 = [center_x + length/2, center_y - breadth/2, center_z-height/2]
+                        x_110 = [center_x + length/2, center_y + breadth/2, center_z-height/2]
+                        x_010 = [center_x - length/2, center_y + breadth/2, center_z-height/2]
+                        x_001 = [center_x - length/2, center_y - breadth/2, center_z+height/2]
+                        x_101 = [center_x + length/2, center_y - breadth/2, center_z+height/2]
+                        x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
+                        x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
+                        gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
+
+                ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
                 ##### prepare for evaluation
                 if cfg.eval:
@@ -134,27 +251,43 @@ def test(model, model_fn, data_name, epoch):
                 os.makedirs(os.path.join(result_dir, 'coords_offsets'), exist_ok=True)
                 pt_offsets_np = pt_offsets.cpu().numpy()
                 coords_np = batch['locs_float'].numpy()
-                coords_offsets = np.concatenate((coords_np, pt_offsets_np), 1)   # (N, 6)
+                coords_offsets = np.concatenate((coords_np, pt_offsets_np), 1)  # (N, 6)
                 np.save(os.path.join(result_dir, 'coords_offsets', test_scene_name + '.npy'), coords_offsets)
-
 
             if(epoch > cfg.prepare_epochs and cfg.save_instance):
                 f = open(os.path.join(result_dir, test_scene_name + '.txt'), 'w')
+                f1 = open(os.path.join(result_dir, test_scene_name +'_bbox'+ '.txt'), 'w')
                 for proposal_id in range(nclusters):
                     clusters_i = clusters[proposal_id].cpu().numpy()  # (N)
                     semantic_label = np.argmax(np.bincount(semantic_pred[np.where(clusters_i == 1)[0]].cpu()))
                     score = cluster_scores[proposal_id]
+                    box = b_boxes[proposal_id]
+                    f1.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
                     f.write('predicted_masks/{}_{:03d}.txt {} {:.4f}'.format(test_scene_name, proposal_id, semantic_label_idx[semantic_label], score))
                     if proposal_id < nclusters - 1:
                         f.write('\n')
                     np.savetxt(os.path.join(result_dir, 'predicted_masks', test_scene_name + '_%03d.txt' % (proposal_id)), clusters_i, fmt='%d')
+                
+                # with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
+                #     for box in gt_boxes:
+                #         f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
+                
                 f.close()
+                f1.close()
+
+
             end3 = time.time() - start3
             end = time.time() - start
             start = time.time()
 
             ##### print
-            logger.info("instance iter: {}/{} point_num: {} ncluster: {} time: total {:.2f}s inference {:.2f}s save {:.2f}s".format(batch['id'][0] + 1, len(dataset.test_files), N, nclusters, end, end1, end3))
+            print(i)
+            logger.info(
+                "instance iter: {}/{} point_num: {} ncluster: {} time: total {:.2f}s inference {:.2f}s save {:.2f}s".format(
+                    i + 1, len(test_dataset.file_names), N, nclusters, end, end1, end3))
+        
+        res = ap_calculator.compute_metrics()
+        print(json.dumps(res, indent = 4))
 
         ##### evaluation
         if cfg.eval:
@@ -208,7 +341,8 @@ if __name__ == '__main__':
     model_fn = model_fn_decorator(test=True)
 
     ##### load model
-    utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda, cfg.test_epoch, dist=False, f=cfg.pretrain)      # resume from the latest epoch, or specify the epoch to restore
+    utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda, cfg.test_epoch, dist=False,
+                             f=cfg.pretrain)  # resume from the latest epoch, or specify the epoch to restore
 
     ##### evaluate
     test(model, model_fn, data_name, cfg.test_epoch)
