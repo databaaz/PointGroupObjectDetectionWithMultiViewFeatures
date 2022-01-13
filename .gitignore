@@ -69,4 +69,4 @@ dataset/scannetv2/val
 dataset/scannetv2/test
 dataset/scannetv2/val_gt
 
-
+env
