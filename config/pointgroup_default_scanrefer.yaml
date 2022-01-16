@@ -1,5 +1,5 @@
 GENERAL:
-  task: train  # train, test
+  task: train # train, test
   manual_seed: 123
   model_dir: model/pointgroup/pointgroup.py
   dataset_dir: data/scannetv2_inst.py
@@ -13,7 +13,7 @@ DATA:
   ignore_label: -100
 
   input_channel: 3
-  scale: 50   # voxel_size = 1 / scale, scale 50(2cm)
+  scale: 50 # voxel_size = 1 / scale, scale 50(2cm)
   batch_size: 1
   full_scale: [128, 512]
   max_npoint: 250000
@@ -36,7 +36,7 @@ TRAIN:
   multiplier: 0.5
   momentum: 0.9
   weight_decay: 0.0001
-  save_freq: 16  # also eval_freq
+  save_freq: 16 # also eval_freq
   loss_weight: [1.0, 1.0, 1.0, 1.0] # semantic_loss, offset_norm_loss, offset_dir_loss, score_loss
 
   fg_thresh: 0.75
@@ -49,6 +49,9 @@ TRAIN:
   pretrain_path:
   pretrain_module: []
   fix_module: []
+
+  # SCANREFER
+  MAX_DES_LEN: 30
 
 GROUP:
   ### point grouping
@@ -74,13 +77,10 @@ TEST:
   save_pt_offsets: True
   save_instance: True
 
-
 # ScanRefer - Scan2CAP
-MULTIVIEW:
+MULTIVIEW: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data/enet_feats_maxpool.hdf5"
 PATH:
-  DATA: #ToDo
-  SCANNET_META: #ToDo
-  
-
-
-
+  DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data"
+  PN_FEATURES: #ToDo
+  SCANNET_DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data"
+  SCANNET_META: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/meta_data"
