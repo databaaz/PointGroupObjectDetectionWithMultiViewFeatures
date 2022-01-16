@@ -17,6 +17,7 @@ from itertools import chain
 from collections import Counter
 from torch.utils.data import Dataset, DataLoader
 import torch
+import scipy
 
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
@@ -1366,7 +1367,10 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     total_inst_num = 0
     for i, item in enumerate(batch):
         data_dict = item
+        print(data_dict.keys())
         pc = data_dict["point_clouds"]
+        label = data_dict["labels"].astype(np.int32)
+        instance_label = data_dict["instance_labels"].astype(np.int32)
         
         # xyz_origin, rgb, label, instance_label = item #fetch additional features here
 
@@ -1376,7 +1380,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         ## xyz_middle = xyz_origin
         
         xyz_middle = pc[:,:3]
-        feats = pc[:,3:]
+        features = pc[:,3:]
         ### scale
         xyz = xyz_middle * scale
 
@@ -1392,7 +1396,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
         xyz_middle = xyz_middle[valid_idxs]
         xyz = xyz[valid_idxs]
-        feats = feats[valid_idxs]
+        features = features[valid_idxs]
         # rgb = rgb[valid_idxs]
         label = label[valid_idxs]
 
@@ -1412,7 +1416,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         locs.append(torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1))
         locs_float.append(torch.from_numpy(xyz_middle))
         # feats.append(torch.from_numpy(rgb) + torch.randn(3) * 0.1) # extend this one
-        feats.append(torch.from_numpy(feats))
+        feats.append(torch.from_numpy(features))
         
         labels.append(torch.from_numpy(label))
         instance_labels.append(torch.from_numpy(instance_label))
@@ -1445,7 +1449,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
 
 def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan2cad_rotation=None):
-    dataset = ScannetReferenceDataset(
+    dataset = ScannetForScan2CapPointGroup(
         scanrefer=scanrefer, 
         scanrefer_all_scene=all_scene_list, 
         split=split, 

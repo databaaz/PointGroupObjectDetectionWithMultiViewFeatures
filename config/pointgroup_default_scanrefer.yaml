@@ -6,7 +6,7 @@ GENERAL:
 
 DATA:
   data_root: dataset
-  dataset: scannetv2
+  # dataset: scannetv2
   filename_suffix: _inst_nostuff.pth
 
   classes: 20
@@ -82,6 +82,7 @@ MULTIVIEW: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/sc
 PATH:
   DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data"
   PN_FEATURES: #ToDo
+  SCANNET: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet"
   SCANNET_DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data"
   SCANNET_META: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/meta_data"
   SCAN2CAD: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/Scan2CAD_dataset"
