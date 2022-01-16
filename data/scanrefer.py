@@ -1016,7 +1016,6 @@ class ScannetForScan2CapPointGroup(ReferenceDataset):
         scan2cad_rotation=None):
 
         # NOTE only feed the scan2cad_rotation when on the training mode and train split
-
         self.scanrefer = scanrefer
         self.scanrefer_all_scene = scanrefer_all_scene # all scene_ids in scanrefer
         self.split = split
@@ -1227,7 +1226,11 @@ class ScannetForScan2CapPointGroup(ReferenceDataset):
         data_dict["v2p_map"] = None#ToDo
         data_dict["locs_float"] = None#ToDo
         data_dict["feats"] = None#ToDo
-        data_dict["labels"] = semantic_labels
+        remapper = np.ones(150) * (-100)
+        for i, x in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]):
+            remapper[x] = i
+        remapper = np.array(remapper)
+        data_dict["labels"] = remapper[semantic_labels]
         data_dict["instance_labels"] = instance_labels#ToDo
         data_dict["instance_info"] = None#ToDo
         data_dict["instance_pointnum"] = None#ToDo
@@ -1380,6 +1383,8 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         ## xyz_middle = xyz_origin
         
         xyz_middle = pc[:,:3]
+        
+
         features = pc[:,3:]
         ### scale
         xyz = xyz_middle * scale

@@ -330,16 +330,14 @@ if __name__ == '__main__':
     from data.scanrefer import get_dataloader
     print("preparing data...")
     scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
+    print(all_scene_list)
     train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
 
 
     # Inspect Batch
     batch = next(iter(train_data_loader))
-    print(batch['offsets'])
-    print(batch['locs'][-5:])
-    print('locs_float',batch['locs_float'][-5:])
-    print('feats',batch['feats'][-5:])
-    print('labels',batch['labels'][-5:])
+    # print(batch['locs'].shape)
+    
     
     
     

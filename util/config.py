@@ -79,7 +79,21 @@ def get_parser():
     #     print(key)
     #     for k, v in config[key].items():
     #         setattr(args_cfg, k, v)
+    n_channel = 1
+    if args_cfg["use_color"]:
+        n_channel += 3
+    if args_cfg["no_height"]:
+        n_channel -= 1
+    if args_cfg["use_normal"]:
+        n_channel += 3
+    if args_cfg["use_multiview"]:
+        n_channel += 128
+    args_cfg["input_channel"] = n_channel
 
+    
+    
+    
+        
     return args_cfg
 
 
