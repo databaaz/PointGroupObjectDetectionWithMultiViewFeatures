@@ -155,7 +155,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
     total_inst_num = 0
     for i, item in enumerate(batch):
-        xyz_origin, rgb, label, instance_label = item
+        xyz_origin, rgb, label, instance_label = item #fetch additional features here
 
         ### jitter / flip x / rotation
         xyz_middle = dataAugment(xyz_origin, True, True, True)
@@ -193,7 +193,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
         locs.append(torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1))
         locs_float.append(torch.from_numpy(xyz_middle))
-        feats.append(torch.from_numpy(rgb) + torch.randn(3) * 0.1)
+        feats.append(torch.from_numpy(rgb) + torch.randn(3) * 0.1) # extend this one
         labels.append(torch.from_numpy(label))
         instance_labels.append(torch.from_numpy(instance_label))
 
