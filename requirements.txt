@@ -5,3 +5,4 @@ tensorboardX
 pyyaml
 scipy
 trimesh
+easydict
