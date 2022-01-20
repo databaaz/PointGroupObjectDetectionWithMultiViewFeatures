@@ -143,7 +143,7 @@ def get_scannet_scene_list(split):
 
     return scene_list
 def get_scanrefer(args):
-    print("aargs", args)
+    
     if args.dataset == "ScanRefer":
         scanrefer_train = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
         scanrefer_eval_train = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))

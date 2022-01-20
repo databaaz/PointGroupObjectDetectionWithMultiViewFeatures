@@ -1329,7 +1329,7 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         instance_labels = self.scene_data[scene_id]["instance_labels"]
         semantic_labels = self.scene_data[scene_id]["semantic_labels"]
         instance_bboxes = self.scene_data[scene_id]["instance_bboxes"]
-        print(f"No.of points in scene {scene_id}: {mesh_vertices)}")
+        
 
         if not self.use_color:
             point_cloud = mesh_vertices[:,0:3] # do not use color for now
@@ -1380,8 +1380,8 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         ref_box_corner_label = np.zeros((8, 3))
 
         num_bbox = 1
-        point_votes = np.zeros([self.num_points, 3])
-        point_votes_mask = np.zeros(self.num_points)
+        point_votes = np.zeros([len(mesh_vertices), 3])
+        point_votes_mask = np.zeros(len(mesh_vertices))
         
         num_bbox = instance_bboxes.shape[0] if instance_bboxes.shape[0] < MAX_NUM_OBJ else MAX_NUM_OBJ
         target_bboxes_mask[0:num_bbox] = 1
@@ -1660,7 +1660,6 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     total_inst_num = 0
     for i, item in enumerate(batch):
         data_dict = item
-        print(data_dict.keys())
         pc = data_dict["point_clouds"]
         label = data_dict["labels"].astype(np.int32)
         instance_label = data_dict["instance_labels"].astype(np.int32)
