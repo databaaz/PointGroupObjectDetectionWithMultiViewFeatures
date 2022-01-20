@@ -1668,11 +1668,11 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
         xyz_origin = pc[:,:3]
         # ### jitter / flip x / rotation
-        xyz_middle = dataAugment(xyz_origin, True, True, True)
+        # xyz_middle = dataAugment(xyz_origin, True, True, True)
         
-        ## xyz_middle = xyz_origin
+        # xyz_middle = xyz_origin
         
-        # xyz_middle = pc[:,:3]
+        xyz_middle = pc[:,:3]
         
 
         features = pc[:,3:]

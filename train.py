@@ -16,6 +16,7 @@ from util.log import logger
 import util.utils as utils
 from data.scannetv2_inst import collate_train, collate_val
 from data.scannet.model_util_scannet import ScannetDatasetConfig
+from data.scanrefer import get_dataloader
 
 import argparse
 from copy import deepcopy
@@ -217,7 +218,7 @@ def get_scanrefer(args):
 
 if __name__ == '__main__':
     ##### init
-    # init()
+    init()
 
     # ##### get model version and data version
     # exp_name = cfg.config.split('/')[-1][:-5]
@@ -225,7 +226,10 @@ if __name__ == '__main__':
     # data_name = exp_name.split('_')[-1]
 
     # ##### model
-    # logger.info('=> creating model ...')
+    logger.info('=> creating model ...')
+
+    from model.pointgroup.pointgroup import PointGroup as Network
+    from model.pointgroup.pointgroup import model_fn_decorator
 
     # if model_name == 'pointgroup':
     #     from model.pointgroup.pointgroup import PointGroup as Network
@@ -234,27 +238,27 @@ if __name__ == '__main__':
     #     print("Error: no model - " + model_name)
     #     exit(0)
 
-    # model = Network(cfg)
+    model = Network(CONF)
 
-    # use_cuda = torch.cuda.is_available()
-    # logger.info('cuda available: {}'.format(use_cuda))
-    # assert use_cuda
-    # model = model.cuda()
+    use_cuda = torch.cuda.is_available()
+    logger.info('cuda available: {}'.format(use_cuda))
+    assert use_cuda
+    model = model.cuda()
 
-    # # logger.info(model)
-    # logger.info('#classifier parameters: {}'.format(sum([x.nelement() for x in model.parameters()])))
+    # logger.info(model)
+    logger.info('#classifier parameters: {}'.format(sum([x.nelement() for x in model.parameters()])))
 
-    # ##### optimizer
-    # if cfg.optim == 'Adam':
-    #     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr)
-    # elif cfg.optim == 'SGD':
-    #     optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr, momentum=cfg.momentum,
-    #                           weight_decay=cfg.weight_decay)
+    ##### optimizer
+    if CONF.optim == 'Adam':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.lr)
+    elif CONF.optim == 'SGD':
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.lr, momentum=CONF.momentum,
+                              weight_decay=CONF.weight_decay)
 
-    # ##### model_fn (criterion)
-    # model_fn = model_fn_decorator()
+    ##### model_fn (criterion)
+    model_fn = model_fn_decorator()
 
-    # writer = SummaryWriter(os.path.join(cfg.exp_path, 'logs'), flush_secs=1)
+    writer = SummaryWriter(os.path.join(CONF.exp_path, 'logs'), flush_secs=1)
 
     # ##### dataset
     # if cfg.dataset == 'scannetv2':
@@ -287,17 +291,21 @@ if __name__ == '__main__':
     #         exit(0)
 
     # ##### resume
-    # start_epoch = utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5],
-    #                                        use_cuda)  # resume from the latest epoch, or specify the epoch to restore
+    scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
+
+    train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
+    val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "val", DC, True, SCAN2CAD_ROTATION)
+    start_epoch = utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
+                                           use_cuda)  # resume from the latest epoch, or specify the epoch to restore
 
     # ##### train and val
-    # for epoch in range(start_epoch, cfg.epochs + 1):
-    #     train_epoch(train_data_loader, model, model_fn, optimizer, epoch, writer)
+    for epoch in range(start_epoch, CONF.epochs + 1):
+        train_epoch(train_data_loader, model, model_fn, optimizer, epoch, writer)
 
-    #     if utils.is_multiple(epoch, cfg.save_freq) or utils.is_power2(epoch):
-    #         eval_epoch(val_data_loader, model, model_fn, epoch, writer)
+        if utils.is_multiple(epoch, CONF.save_freq) or utils.is_power2(epoch):
+            eval_epoch(val_data_loader, model, model_fn, epoch, writer)
 
-    #     writer.close()
+        writer.close()
 
 
     # debug
@@ -318,24 +326,24 @@ if __name__ == '__main__':
     
 
     # setting
-    os.environ["CUDA_VISIBLE_DEVICES"] = CONF.gpu
-    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = CONF.gpu
+    # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
     # reproducibility
-    torch.manual_seed(CONF.seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(CONF.seed)
+    # torch.manual_seed(CONF.seed)
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+    # np.random.seed(CONF.seed)
 
-    from data.scanrefer import get_dataloader
-    print("preparing data...")
-    scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
-    print(all_scene_list)
-    train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
+    # from data.scanrefer import get_dataloader
+    # print("preparing data...")
+    # scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
+    # print(all_scene_list)
+    # train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
 
 
     # Inspect Batch
-    batch = next(iter(train_data_loader))
+    # batch = next(iter(train_data_loader))
     # print(batch['locs'].shape)
     
     
