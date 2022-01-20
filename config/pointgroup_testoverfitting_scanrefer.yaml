@@ -28,7 +28,7 @@ STRUCTURE:
   use_coords: True
 
 TRAIN:
-  epochs: 384
+  epochs: 250
   train_workers: 16 # data loader workers
   optim: Adam # Adam or SGD
   lr: 0.001
@@ -60,7 +60,7 @@ GROUP:
   cluster_shift_meanActive: 300
   cluster_npoint_thre: 50
 
-  prepare_epochs: 128
+  prepare_epochs: 300
 
 TEST:
   split: val

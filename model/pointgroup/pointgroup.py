@@ -220,6 +220,9 @@ class PointGroup(nn.Module):
         clusters_coords_min = pointgroup_ops.sec_min(clusters_coords, clusters_offset.cuda())  # (nCluster, 3), float
         clusters_coords_max = pointgroup_ops.sec_max(clusters_coords, clusters_offset.cuda())  # (nCluster, 3), float
 
+        # import pdb
+        # pdb.set_trace()
+
         clusters_scale = 1 / ((clusters_coords_max - clusters_coords_min) / fullscale).max(1)[0] - 0.01  # (nCluster), float
         clusters_scale = torch.clamp(clusters_scale, min=None, max=scale)
 
@@ -272,6 +275,8 @@ class PointGroup(nn.Module):
 
         ret['semantic_scores'] = semantic_scores
 
+        print(semantic_preds.unique())
+
         #### offset
         pt_offsets_feats = self.offset(output_feats)
         pt_offsets = self.offset_linear(pt_offsets_feats)   # (N, 3), float32
@@ -305,6 +310,9 @@ class PointGroup(nn.Module):
             proposals_offset_shift += proposals_offset[-1]
             proposals_idx = torch.cat((proposals_idx, proposals_idx_shift), dim=0)
             proposals_offset = torch.cat((proposals_offset, proposals_offset_shift[1:]))
+
+            # import pdb
+            # pdb.set_trace()
 
             #### proposals voxelization again
             input_feats, inp_map = self.clusters_voxelization(proposals_idx, proposals_offset, output_feats, coords, self.score_fullscale, self.score_scale, self.mode)
@@ -396,6 +404,8 @@ def model_fn_decorator(test=False):
         input_ = spconv.SparseConvTensor(voxel_feats, voxel_coords.int(), spatial_shape, cfg.batch_size)
 
         ret = model(input_, p2v_map, coords_float, coords[:, 0].int(), batch_offsets, epoch)
+
+
         semantic_scores = ret['semantic_scores'] # (N, nClass) float32, cuda
         pt_offsets = ret['pt_offsets']           # (N, 3), float32, cuda
         if(epoch > cfg.prepare_epochs):
@@ -405,6 +415,8 @@ def model_fn_decorator(test=False):
             # proposals_offset: (nProposal + 1), int, cpu
 
         loss_inp = {}
+        # import pdb
+        # pdb.set_trace()
         loss_inp['semantic_scores'] = (semantic_scores, labels)
         loss_inp['pt_offsets'] = (pt_offsets, coords_float, instance_info, instance_labels)
         if(epoch > cfg.prepare_epochs):
@@ -445,6 +457,7 @@ def model_fn_decorator(test=False):
         # semantic_labels: (N), long, cuda
 
         semantic_loss = semantic_criterion(semantic_scores, semantic_labels)
+
         loss_out['semantic_loss'] = (semantic_loss, semantic_scores.shape[0])
 
         '''offset loss'''

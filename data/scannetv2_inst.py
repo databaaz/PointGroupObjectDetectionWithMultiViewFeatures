@@ -217,9 +217,12 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     ### voxelize
     voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, batch_size, voxel_mode)
 
+    import pdb
+    pdb.set_trace()
+
     return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
             'locs_float': locs_float, 'feats': feats, 'labels': labels, 'instance_labels': instance_labels,
-            'instance_info': instance_infos, 'instance_pointnum': instance_pointnum,
+            'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'point_coords': xyz_origin,
             'offsets': batch_offsets, 'spatial_shape': spatial_shape}
 
 

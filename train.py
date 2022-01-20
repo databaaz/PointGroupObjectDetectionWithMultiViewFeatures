@@ -143,6 +143,7 @@ def get_scannet_scene_list(split):
     scene_list = sorted([line.rstrip() for line in open(os.path.join(CONF.PATH.SCANNET_META, "scannetv2_{}.txt".format(split)))])
 
     return scene_list
+
 def get_scanrefer(args):
     print("aargs", args)
     if args.dataset == "ScanRefer":
@@ -161,8 +162,8 @@ def get_scanrefer(args):
         scanrefer_eval_train = [SCANREFER_TRAIN[0]]
         scanrefer_eval_val = [SCANREFER_TRAIN[0]]
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
 
     if args.no_caption: #what does this arg imply ?
         train_scene_list = get_scannet_scene_list("train")
@@ -297,8 +298,8 @@ if __name__ == '__main__':
     train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
     val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "val", DC, True, SCAN2CAD_ROTATION)
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
 
     ##### resume
     start_epoch = utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],

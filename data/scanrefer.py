@@ -26,8 +26,11 @@ from util.config import cfg as CONF
 from util.pc_utils import random_sampling, rotx, roty, rotz
 from util.box_util import get_3d_box, get_3d_box_batch
 from data.scannet.model_util_scannet import rotate_aligned_boxes, ScannetDatasetConfig, rotate_aligned_boxes_along_axis
+from data.scannetv2_inst import dataAugment
 
 from lib.pointgroup_ops.functions import pointgroup_ops
+
+cfg=CONF
 
 # data setting
 DC = ScannetDatasetConfig()
@@ -1355,6 +1358,9 @@ def getCroppedInstLabel(instance_label, valid_idxs):
             instance_label[instance_label == instance_label.max()] = j
         j += 1
     return instance_label
+
+
+
 def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     locs = []
     locs_float = []
@@ -1370,19 +1376,21 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     total_inst_num = 0
     for i, item in enumerate(batch):
         data_dict = item
-        print(data_dict.keys())
+        # print(data_dict.keys())
         pc = data_dict["point_clouds"]
         label = data_dict["labels"].astype(np.int32)
         instance_label = data_dict["instance_labels"].astype(np.int32)
         
+
+        xyz_origin = pc[:, :3]
         # xyz_origin, rgb, label, instance_label = item #fetch additional features here
 
         # ### jitter / flip x / rotation
-        # xyz_middle = dataAugment(xyz_origin, True, True, True)
+        xyz_middle = dataAugment(xyz_origin, True, True, True)
         
         ## xyz_middle = xyz_origin
         
-        xyz_middle = pc[:,:3]
+        # xyz_middle = pc[:,:3]
         
 
         features = pc[:,3:]
@@ -1448,7 +1456,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
     return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
             'locs_float': locs_float, 'feats': feats, 'labels': labels, 'instance_labels': instance_labels,
-            'instance_info': instance_infos, 'instance_pointnum': instance_pointnum,
+            'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'point_coords': xyz_origin,
             'offsets': batch_offsets, 'spatial_shape': spatial_shape}
 
 
@@ -1464,17 +1472,17 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
         use_color=args.use_color, 
         use_normal=args.use_normal, 
         use_multiview=args.use_multiview,
-        augment=augment,
+        augment=False,  # augment,
         scan2cad_rotation=scan2cad_rotation
     )
     # Scan2C: dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size,
-                                           collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
-                                                                                  voxel_mode=CONF.mode,
-                                                                                  max_npoint=CONF.max_npoint,
-                                                                                  batch_size=CONF.batch_size),
-                                           num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
-                                           pin_memory=True)
+                            collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
+                                                                    voxel_mode=CONF.mode,
+                                                                    max_npoint=CONF.max_npoint,
+                                                                    batch_size=CONF.batch_size),
+                            num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
+                            pin_memory=True)
 
     return dataloader                                    
