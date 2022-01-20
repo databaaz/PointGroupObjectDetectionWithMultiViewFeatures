@@ -145,7 +145,7 @@ def get_scannet_scene_list(split):
     return scene_list
 
 def get_scanrefer(args):
-    print("aargs", args)
+    
     if args.dataset == "ScanRefer":
         scanrefer_train = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
         scanrefer_eval_train = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
@@ -293,19 +293,15 @@ if __name__ == '__main__':
     #         print("Error: no data loader - " + data_name)
     #         exit(0)
 
+    # ##### resume
     scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
 
     train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
     val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "val", DC, True, SCAN2CAD_ROTATION)
-
-    # import pdb
-    # pdb.set_trace()
-
-    ##### resume
     start_epoch = utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
                                            use_cuda)  # resume from the latest epoch, or specify the epoch to restore
 
-    ##### train and val
+    # ##### train and val
     for epoch in range(start_epoch, CONF.epochs + 1):
         train_epoch(train_data_loader, model, model_fn, optimizer, epoch, writer)
 
@@ -336,7 +332,7 @@ if __name__ == '__main__':
     # os.environ["CUDA_VISIBLE_DEVICES"] = CONF.gpu
     # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
-    # # reproducibility
+    # reproducibility
     # torch.manual_seed(CONF.seed)
     # torch.backends.cudnn.deterministic = True
     # torch.backends.cudnn.benchmark = False
@@ -349,9 +345,9 @@ if __name__ == '__main__':
     # train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
 
 
-    # # Inspect Batch
+    # Inspect Batch
     # batch = next(iter(train_data_loader))
-    # # print(batch['locs'].shape)
+    # print(batch['locs'].shape)
     
     
     
