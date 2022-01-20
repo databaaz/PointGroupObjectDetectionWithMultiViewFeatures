@@ -1666,10 +1666,6 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     total_inst_num = 0
     for i, item in enumerate(batch):
         data_dict = item
-<<<<<<< HEAD
-        # print(data_dict.keys())
-=======
->>>>>>> pointgroup_allpoints
         pc = data_dict["point_clouds"]
         label = data_dict["labels"].astype(np.int32)
         instance_label = data_dict["instance_labels"].astype(np.int32)
@@ -1766,11 +1762,7 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
         use_color=args.use_color, 
         use_normal=args.use_normal, 
         use_multiview=args.use_multiview,
-<<<<<<< HEAD
-        augment=False,  # augment,
-=======
         augment=False,
->>>>>>> pointgroup_allpoints
         scan2cad_rotation=scan2cad_rotation
     )
     # Scan2C: dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)

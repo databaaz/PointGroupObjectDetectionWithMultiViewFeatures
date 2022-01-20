@@ -28,15 +28,7 @@ STRUCTURE:
   use_coords: True
 
 TRAIN:
-<<<<<<< HEAD
-<<<<<<< HEAD:config/pointgroup_trainoverfitting_scanrefer.yaml
-  epochs: 250
-=======
   epochs: 1000
->>>>>>> pointgroup_allpoints:config/pointgroup_trainingoverfittingWithAlignedVert_scanrefer.yaml
-=======
-  epochs: 1000
->>>>>>> pointgroup_allpoints
   train_workers: 16 # data loader workers
   optim: Adam # Adam or SGD
   lr: 0.001
