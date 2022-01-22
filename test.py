@@ -22,6 +22,7 @@ from torch.utils.data import DataLoader
 
 from util.config import cfg
 
+cfg.task = 'test'
 CONF.task = 'test'
 from util.log import logger
 import util.utils as utils
@@ -89,8 +90,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             preds = model_fn(batch, model, epoch)
             end1 = time.time() - start1
 
-            import pdb
-            pdb.set_trace()
 
             ##### get predictions (#1 semantic_pred, pt_offsets; #2 scores, proposals_pred)
             semantic_scores = preds['semantic']  # (N, nClass=20) float32, cuda
@@ -152,8 +151,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 labels = cluster_semantic_id.cpu().numpy()
                 clusters_np = clusters.cpu().numpy()
 
-                import pdb
-                pdb.set_trace()
 
                 for j,c in enumerate(clusters_np):
                     # logger.info(f"points in cluster from matrix {c.sum()}")
@@ -190,7 +187,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
 
                     b_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001]), bbox['score']))
-
 
                 # ground truth boxes
                 gt_file = os.path.join(cfg.data_root, 'scannetv2', cfg.split + '_gt', test_scene_name + '.txt')
