@@ -1,5 +1,5 @@
 GENERAL:
-  task: train # train, test
+  task: test # train, test
   manual_seed: 123
   model_dir: model/pointgroup/pointgroup.py
   dataset_dir: data/scannetv2_inst.py
@@ -29,7 +29,7 @@ STRUCTURE:
 
 TRAIN:
   epochs: 250
-  train_workers: 16 # data loader workers
+  train_workers: 0 # data loader workers
   optim: Adam # Adam or SGD
   lr: 0.001
   step_epoch: 384
@@ -60,7 +60,7 @@ GROUP:
   cluster_shift_meanActive: 300
   cluster_npoint_thre: 50
 
-  prepare_epochs: 300
+  prepare_epochs: 128
 
 TEST:
   split: val
@@ -73,8 +73,8 @@ TEST:
   TEST_NPOINT_THRESH: 100
 
   eval: True
-  save_semantic: True
-  save_pt_offsets: True
+  save_semantic: False
+  save_pt_offsets: False
   save_instance: True
 
 # ScanRefer - Scan2CAP
@@ -83,6 +83,6 @@ PATH:
   DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data"
   PN_FEATURES: #ToDo
   SCANNET: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet"
-  SCANNET_DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data"
+  SCANNET_DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data_all_points"
   SCANNET_META: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/meta_data"
   SCAN2CAD: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/Scan2CAD_dataset"

@@ -1678,6 +1678,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         # xyz_origin, rgb, label, instance_label = item #fetch additional features here
 
         xyz_origin = pc[:,:3]
+        print(xyz_origin.shape)
         # ### jitter / flip x / rotation
         # xyz_middle = dataAugment(xyz_origin, True, True, True)
         
@@ -1752,6 +1753,60 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
             'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'point_coords': xyz_origin,
             'offsets': batch_offsets, 'spatial_shape': spatial_shape}
 
+def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
+    locs = []
+    locs_float = []
+    feats = []
+
+    batch_offsets = [0]
+
+    for i, item in enumerate(batch):
+
+        data_dict = item
+        pc = data_dict["point_clouds"]
+        label = data_dict["labels"].astype(np.int32)
+        instance_label = data_dict["instance_labels"].astype(np.int32)
+
+        xyz_origin = pc[:,:3]
+        features = pc[:,3:]
+        # xyz_origin = item[:, :3]
+        # rgb = item[:, 3:6]
+
+        ###################################################### REENABLE data augmentation
+        ### flip x / rotation
+        # xyz_middle = dataAugment(xyz_origin, False, True, True)
+
+        xyz_middle = xyz_origin
+
+        ### scale
+        xyz = xyz_middle * scale
+
+        ### offset
+        xyz -= xyz.min(0)
+
+        ### merge the scene to the batch
+        batch_offsets.append(batch_offsets[-1] + xyz.shape[0])
+
+        locs.append(torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1))
+        locs_float.append(torch.from_numpy(xyz_middle))
+        feats.append(torch.from_numpy(features))
+
+    ### merge all the scenes in the batch
+    batch_offsets = torch.tensor(batch_offsets, dtype=torch.int)  # int (B+1)
+
+    locs = torch.cat(locs, 0)  # long (N, 1 + 3), the batch item idx is put in locs[:, 0]
+    locs_float = torch.cat(locs_float, 0).to(torch.float32)  # float (N, 3)
+    feats = torch.cat(feats, 0)  # float (N, C)
+
+    spatial_shape = np.clip((locs.max(0)[0][1:] + 1).numpy(), full_scale[0], None)  # long (3)
+
+    ### voxelize
+    voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, batch_size, voxel_mode)
+
+    return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
+            'locs_float': locs_float, 'feats': feats, 'point_coords':xyz_origin,
+            'offsets': batch_offsets, 'spatial_shape': spatial_shape}
+
 
 
 def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan2cad_rotation=None):
@@ -1770,12 +1825,21 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
     )
     # Scan2C: dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    dataloader = DataLoader(dataset, batch_size=args.batch_size,
-                            collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
-                                                                    voxel_mode=CONF.mode,
-                                                                    max_npoint=CONF.max_npoint,
-                                                                    batch_size=CONF.batch_size),
-                            num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
-                            pin_memory=True)
+    # dataloader = DataLoader(dataset, batch_size=args.batch_size,
+    #                         collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
+    #                                                                 voxel_mode=CONF.mode,
+    #                                                                 max_npoint=CONF.max_npoint,
+    #                                                                 batch_size=CONF.batch_size),
+    #                         num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
+    #                         pin_memory=True)
+
+    # test_dataset = Dataset(split='train', test_mode=True)  # reset split to val
+    dataloader = DataLoader(dataset, batch_size=1,
+                                    collate_fn=lambda batch: collate_test(batch, cfg.scale, cfg.full_scale,
+                                                                        voxel_mode=cfg.mode,
+                                                                        test_split='train',
+                                                                        batch_size=cfg.batch_size),
+                                    num_workers=cfg.test_workers,
+                                    shuffle=False, drop_last=False, pin_memory=True)
 
     return dataloader                                    
