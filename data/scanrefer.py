@@ -22,15 +22,13 @@ import scipy
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 # from lib.config import CONF
-from util.config import cfg as CONF
+from util.config import CONF as CONF
 from util.pc_utils import random_sampling, rotx, roty, rotz
 from util.box_util import get_3d_box, get_3d_box_batch
 from data.scannet.model_util_scannet import rotate_aligned_boxes, ScannetDatasetConfig, rotate_aligned_boxes_along_axis
 from data.scannetv2_inst import dataAugment
 
 from lib.pointgroup_ops.functions import pointgroup_ops
-
-cfg=CONF
 
 # data setting
 DC = ScannetDatasetConfig()
@@ -1835,11 +1833,11 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
 
     # test_dataset = Dataset(split='train', test_mode=True)  # reset split to val
     dataloader = DataLoader(dataset, batch_size=1,
-                                    collate_fn=lambda batch: collate_test(batch, cfg.scale, cfg.full_scale,
-                                                                        voxel_mode=cfg.mode,
+                                    collate_fn=lambda batch: collate_test(batch, CONF.scale, CONF.full_scale,
+                                                                        voxel_mode=CONF.mode,
                                                                         test_split='train',
-                                                                        batch_size=cfg.batch_size),
-                                    num_workers=cfg.test_workers,
+                                                                        batch_size=CONF.batch_size),
+                                    num_workers=CONF.test_workers,
                                     shuffle=False, drop_last=False, pin_memory=True)
 
     return dataloader                                    

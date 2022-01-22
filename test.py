@@ -20,9 +20,6 @@ from data.scanrefer import get_dataloader
 
 from torch.utils.data import DataLoader
 
-from util.config import cfg
-
-cfg.task = 'test'
 CONF.task = 'test'
 from util.log import logger
 import util.utils as utils
@@ -38,27 +35,27 @@ from copy import deepcopy
 
 def init():
     global result_dir
-    result_dir = os.path.join(cfg.exp_path, 'result',
-                              'epoch{}_nmst{}_scoret{}_npointt{}'.format(cfg.test_epoch, cfg.TEST_NMS_THRESH,
-                                                                         cfg.TEST_SCORE_THRESH, cfg.TEST_NPOINT_THRESH),
-                              cfg.split)
+    result_dir = os.path.join(CONF.exp_path, 'result',
+                              'epoch{}_nmst{}_scoret{}_npointt{}'.format(CONF.test_epoch, CONF.TEST_NMS_THRESH,
+                                                                         CONF.TEST_SCORE_THRESH, CONF.TEST_NPOINT_THRESH),
+                              CONF.split)
     backup_dir = os.path.join(result_dir, 'backup_files')
     os.makedirs(backup_dir, exist_ok=True)
     os.makedirs(os.path.join(result_dir, 'predicted_masks'), exist_ok=True)
     os.system('cp test.py {}'.format(backup_dir))
-    os.system('cp {} {}'.format(cfg.model_dir, backup_dir))
-    os.system('cp {} {}'.format(cfg.dataset_dir, backup_dir))
-    os.system('cp {} {}'.format(cfg.config, backup_dir))
+    os.system('cp {} {}'.format(CONF.model_dir, backup_dir))
+    os.system('cp {} {}'.format(CONF.dataset_dir, backup_dir))
+    os.system('cp {} {}'.format(CONF.config, backup_dir))
 
     global semantic_label_idx
     semantic_label_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
 
-    logger.info(cfg)
+    logger.info(CONF)
 
-    random.seed(cfg.test_seed)
-    np.random.seed(cfg.test_seed)
-    torch.manual_seed(cfg.test_seed)
-    torch.cuda.manual_seed_all(cfg.test_seed)
+    random.seed(CONF.test_seed)
+    np.random.seed(CONF.test_seed)
+    torch.manual_seed(CONF.test_seed)
+    torch.cuda.manual_seed_all(CONF.test_seed)
 
 
 def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
@@ -97,7 +94,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
 
             pt_offsets = preds['pt_offsets']  # (N, 3), float32, cuda
 
-            if (epoch > cfg.prepare_epochs):
+            if (epoch > CONF.prepare_epochs):
                 scores = preds['score']  # (nProposal, 1) float, cuda
                 scores_pred = torch.sigmoid(scores.view(-1))
 
@@ -112,14 +109,14 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     semantic_pred[proposals_idx[:, 1][proposals_offset[:-1].long()].long()]]  # (nProposal), long
 
                 ##### score threshold
-                score_mask = (scores_pred > cfg.TEST_SCORE_THRESH)
+                score_mask = (scores_pred > CONF.TEST_SCORE_THRESH)
                 scores_pred = scores_pred[score_mask]
                 proposals_pred = proposals_pred[score_mask]
                 semantic_id = semantic_id[score_mask]
 
                 ##### npoint threshold
                 proposals_pointnum = proposals_pred.sum(1)
-                npoint_mask = (proposals_pointnum > cfg.TEST_NPOINT_THRESH)
+                npoint_mask = (proposals_pointnum > CONF.TEST_NPOINT_THRESH)
                 scores_pred = scores_pred[npoint_mask]
                 proposals_pred = proposals_pred[npoint_mask]
                 semantic_id = semantic_id[npoint_mask]
@@ -136,7 +133,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     proposals_pn_v = proposals_pointnum.unsqueeze(0).repeat(proposals_pointnum.shape[0], 1)
                     cross_ious = intersection / (proposals_pn_h + proposals_pn_v - intersection)
                     pick_idxs = non_max_suppression(cross_ious.cpu().numpy(), scores_pred.cpu().numpy(),
-                                                    cfg.TEST_NMS_THRESH)  # int, (nCluster, N)
+                                                    CONF.TEST_NMS_THRESH)  # int, (nCluster, N)
                 clusters = proposals_pred[pick_idxs]
                 cluster_scores = scores_pred[pick_idxs]
                 cluster_semantic_id = semantic_id[pick_idxs]
@@ -189,7 +186,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     b_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001]), bbox['score']))
 
                 # ground truth boxes
-                gt_file = os.path.join(cfg.data_root, 'scannetv2', cfg.split + '_gt', test_scene_name + '.txt')
+                gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
                 gt_instances = eval.get_gt_instances_from_file(gt_file)
                 n_instances = [len(gt_instances[k]) for k in gt_instances]
                 logger.info(f"no. of gt_instances = {sum(n_instances)}")
@@ -232,12 +229,12 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
                 ##### prepare for evaluation
-                if cfg.eval:
+                if CONF.eval:
                     pred_info = {}
                     pred_info['conf'] = cluster_scores.cpu().numpy()
                     pred_info['label_id'] = cluster_semantic_id.cpu().numpy()
                     pred_info['mask'] = clusters.cpu().numpy()
-                    gt_file = os.path.join(cfg.data_root, 'scannetv2', cfg.split + '_gt', test_scene_name + '.txt')
+                    gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
                     gt2pred, pred2gt = eval.assign_instances_for_scan(test_scene_name, pred_info, gt_file)
                     matches[test_scene_name] = {}
                     matches[test_scene_name]['gt'] = gt2pred
@@ -246,19 +243,19 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             try:
                 ##### save files
                 start3 = time.time()
-                if cfg.save_semantic:
+                if CONF.save_semantic:
                     os.makedirs(os.path.join(result_dir, 'semantic'), exist_ok=True)
                     semantic_np = semantic_pred.cpu().numpy()
                     np.save(os.path.join(result_dir, 'semantic', test_scene_name + '.npy'), semantic_np)
 
-                if cfg.save_pt_offsets:
+                if CONF.save_pt_offsets:
                     os.makedirs(os.path.join(result_dir, 'coords_offsets'), exist_ok=True)
                     pt_offsets_np = pt_offsets.cpu().numpy()
                     coords_np = batch['locs_float'].numpy()
                     coords_offsets = np.concatenate((coords_np, pt_offsets_np), 1)  # (N, 6)
                     np.save(os.path.join(result_dir, 'coords_offsets', test_scene_name + '.npy'), coords_offsets)
 
-                if(epoch > cfg.prepare_epochs and cfg.save_instance):
+                if(epoch > CONF.prepare_epochs and CONF.save_instance):
                     f = open(os.path.join(result_dir, test_scene_name + '.txt'), 'w')
                     f1 = open(os.path.join(result_dir, test_scene_name +'_bbox'+ '.txt'), 'w')
 
@@ -297,7 +294,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
         print(json.dumps(res, indent = 4))
 
         ##### evaluation
-        if cfg.eval:
+        if CONF.eval:
             ap_scores = eval.evaluate_matches(matches)
             avgs = eval.compute_averages(ap_scores)
             eval.print_results(avgs)
@@ -440,13 +437,13 @@ def get_scanrefer(args):
 if __name__ == '__main__':
     # init()
     # ##### get model version and data version
-    # exp_name = cfg.config.split('/')[-1][:-5]
+    # exp_name = CONF.config.split('/')[-1][:-5]
     # model_name = exp_name.split('_')[0]
     # data_name = exp_name.split('_')[-1]
 
     # ##### model
     # logger.info('=> creating model ...')
-    # logger.info('Classes: {}'.format(cfg.classes))
+    # logger.info('Classes: {}'.format(CONF.classes))
 
     # if model_name == 'pointgroup':
     #     from model.pointgroup.pointgroup import PointGroup as Network
@@ -454,7 +451,7 @@ if __name__ == '__main__':
     # else:
     #     print("Error: no model version " + model_name)
     #     exit(0)
-    # model = Network(cfg)
+    # model = Network(CONF)
 
     # use_cuda = torch.cuda.is_available()
     # logger.info('cuda available: {}'.format(use_cuda))
@@ -468,11 +465,11 @@ if __name__ == '__main__':
     # model_fn = model_fn_decorator(test=True)
 
     # ##### load model
-    # utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda, cfg.test_epoch, dist=False,
-    #                          f=cfg.pretrain)  # resume from the latest epoch, or specify the epoch to restore
+    # utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5], use_cuda, CONF.test_epoch, dist=False,
+    #                          f=CONF.pretrain)  # resume from the latest epoch, or specify the epoch to restore
 
     # ##### evaluate
-    # test(model, model_fn, data_name, cfg.test_epoch)
+    # test(model, model_fn, data_name, CONF.test_epoch)
 
 
 
