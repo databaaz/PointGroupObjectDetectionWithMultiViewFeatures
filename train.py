@@ -158,9 +158,11 @@ def get_scanrefer(args):
         raise ValueError("Invalid dataset.")
 
     if args.debug:
-        scanrefer_train = [SCANREFER_TRAIN[0]]
-        scanrefer_eval_train = [SCANREFER_TRAIN[0]]
-        scanrefer_eval_val = [SCANREFER_TRAIN[0]]
+        ind = np.random.choice(len(SCANREFER_TRAIN))
+        print(f"scene used for debugging: {SCANREFER_TRAIN[ind]}")
+        scanrefer_train = [SCANREFER_TRAIN[ind]]
+        scanrefer_eval_train = [SCANREFER_TRAIN[ind]]
+        scanrefer_eval_val = [SCANREFER_TRAIN[ind]]
 
     # import pdb
     # pdb.set_trace()
@@ -296,11 +298,11 @@ if __name__ == '__main__':
     # ##### resume
     scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
 
-    train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
+    train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)    
     val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "val", DC, True, SCAN2CAD_ROTATION)
     start_epoch = utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
                                            use_cuda)  # resume from the latest epoch, or specify the epoch to restore
-
+    
     # ##### train and val
     for epoch in range(start_epoch, CONF.epochs + 1):
         train_epoch(train_data_loader, model, model_fn, optimizer, epoch, writer)

@@ -253,11 +253,11 @@ class ReferenceDataset(Dataset):
         for scene_id in self.scene_list:
             self.scene_data[scene_id] = {}
             # self.scene_data[scene_id]["mesh_vertices"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_vert.npy")
-            self.scene_data[scene_id]["mesh_vertices"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_aligned_vert.npy") # axis-aligned #(N,9)
+            self.scene_data[scene_id]["mesh_vertices"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_vert.npy") # axis-aligned #(N,9)
             self.scene_data[scene_id]["instance_labels"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_ins_label.npy") 
             self.scene_data[scene_id]["semantic_labels"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_sem_label.npy")
             # self.scene_data[scene_id]["instance_bboxes"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_bbox.npy")
-            self.scene_data[scene_id]["instance_bboxes"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_aligned_bbox.npy") #(N,8)
+            self.scene_data[scene_id]["instance_bboxes"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_bbox.npy") #(N,8)
             
 
         # prepare class mapping
@@ -1339,8 +1339,11 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
             pcl_color = mesh_vertices[:,3:6]
         else:
             point_cloud = mesh_vertices[:,0:6] 
-            point_cloud[:,3:6] = (point_cloud[:,3:6]-MEAN_COLOR_RGB)/256.0 #255.0
+            # point_cloud[:,3:6] = (point_cloud[:,3:6]-MEAN_COLOR_RGB)/256.0 #255.0
+            # replicate pointgroup behavior
+            point_cloud[:,3:6] = point_cloud[:,3:6]/127.5 - 1
             pcl_color = point_cloud[:,3:6]
+        point_cloud[:,:3] = point_cloud[:,:3] - point_cloud[:, :3].mean(0) # replicate pointgroup behavior
         
         if self.use_normal:
             normals = mesh_vertices[:,6:9]
@@ -1671,14 +1674,14 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         instance_label = data_dict["instance_labels"].astype(np.int32)
         
 
-        xyz_origin = pc[:, :3]
+        # xyz_origin = pc[:, :3]
         # xyz_origin, rgb, label, instance_label = item #fetch additional features here
 
         xyz_origin = pc[:,:3]
         # ### jitter / flip x / rotation
-        xyz_middle = dataAugment(xyz_origin, True, True, True)
+        # xyz_middle = dataAugment(xyz_origin, True, True, True)
         
-        # xyz_middle = xyz_origin
+        xyz_middle = xyz_origin
         
         # xyz_middle = pc[:,:3]
         
@@ -1688,8 +1691,8 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         xyz = xyz_middle * scale
 
         ### elastic
-        xyz = elastic(xyz, 6 * scale // 50, 40 * scale / 50)
-        xyz = elastic(xyz, 20 * scale // 50, 160 * scale / 50)
+        # xyz = elastic(xyz, 6 * scale // 50, 40 * scale / 50)
+        # xyz = elastic(xyz, 20 * scale // 50, 160 * scale / 50)
 
         ### offset
         xyz -= xyz.min(0)
