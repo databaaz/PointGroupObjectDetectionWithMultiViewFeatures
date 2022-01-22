@@ -37,46 +37,33 @@ from copy import deepcopy
 
 def init():
     global result_dir
-    result_dir = os.path.join(CONF.exp_path, 'result',
-                              'epoch{}_nmst{}_scoret{}_npointt{}'.format(CONF.test_epoch, CONF.TEST_NMS_THRESH,
-                                                                         CONF.TEST_SCORE_THRESH, CONF.TEST_NPOINT_THRESH),
-                              CONF.split)
+    result_dir = os.path.join(cfg.exp_path, 'result',
+                              'epoch{}_nmst{}_scoret{}_npointt{}'.format(cfg.test_epoch, cfg.TEST_NMS_THRESH,
+                                                                         cfg.TEST_SCORE_THRESH, cfg.TEST_NPOINT_THRESH),
+                              cfg.split)
     backup_dir = os.path.join(result_dir, 'backup_files')
     os.makedirs(backup_dir, exist_ok=True)
     os.makedirs(os.path.join(result_dir, 'predicted_masks'), exist_ok=True)
     os.system('cp test.py {}'.format(backup_dir))
-    os.system('cp {} {}'.format(CONF.model_dir, backup_dir))
-    os.system('cp {} {}'.format(CONF.dataset_dir, backup_dir))
-    os.system('cp {} {}'.format(CONF.config, backup_dir))
+    os.system('cp {} {}'.format(cfg.model_dir, backup_dir))
+    os.system('cp {} {}'.format(cfg.dataset_dir, backup_dir))
+    os.system('cp {} {}'.format(cfg.config, backup_dir))
 
     global semantic_label_idx
     semantic_label_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
 
-    logger.info(CONF)
+    logger.info(cfg)
 
-    random.seed(CONF.test_seed)
-    np.random.seed(CONF.test_seed)
-    torch.manual_seed(CONF.test_seed)
-    torch.cuda.manual_seed_all(CONF.test_seed)
+    random.seed(cfg.test_seed)
+    np.random.seed(cfg.test_seed)
+    torch.manual_seed(cfg.test_seed)
+    torch.cuda.manual_seed_all(cfg.test_seed)
 
 
 def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
     logger.info('>>>>>>>>>>>>>>>> Start Evaluation >>>>>>>>>>>>>>>>')
 
-    # if cfg.dataset == 'scannetv2':
-    #     if data_name == 'scannet':
-    #         from data.scannetv2_inst import Dataset
-    #         test_dataset = Dataset(split='val', test_mode=True)
-    #         test_dataloader = DataLoader(test_dataset, batch_size=1,
-    #                                      collate_fn=lambda batch: collate_test(batch, cfg.scale, cfg.full_scale,
-    #                                                                            voxel_mode=cfg.mode,
-    #                                                                            test_split=cfg.split,
-    #                                                                            batch_size=cfg.batch_size),
-    #                                      num_workers=cfg.test_workers,
-    #                                      shuffle=False, drop_last=False, pin_memory=True)
-    #     else:
-    #         print("Error: no data loader - " + data_name)
-    #         exit(0)
+    ######################################## RESET TO COLLATE TEST HERE
 
     with torch.no_grad():
         model = model.eval()
@@ -93,27 +80,25 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             print(i)
             N = batch['feats'].shape[0]
             point_coords = batch['point_coords']#.cpu.numpy()
-            logger.info(f"point_coords shape:{point_coords.shape}")
+            # logger.info(f"point_coords shape:{point_coords.shape}")
             # test_scene_name = dataset.test_file_names[int(batch['id'][0])].split('/')[-1][:12]
-            test_scene_name = test_dataset[i]['scene_id']
+            test_scene_name = test_dataset[0]['scene_id']
             print(test_scene_name)
 
             start1 = time.time()
             preds = model_fn(batch, model, epoch)
             end1 = time.time() - start1
 
-            # import pdb
-            # pdb.set_trace()
+            import pdb
+            pdb.set_trace()
 
             ##### get predictions (#1 semantic_pred, pt_offsets; #2 scores, proposals_pred)
-            # import pdb
-            # pdb.set_trace()
             semantic_scores = preds['semantic']  # (N, nClass=20) float32, cuda
             semantic_pred = semantic_scores.max(1)[1]  # (N) long, cuda
 
             pt_offsets = preds['pt_offsets']  # (N, 3), float32, cuda
 
-            if (epoch > CONF.prepare_epochs):
+            if (epoch > cfg.prepare_epochs):
                 scores = preds['score']  # (nProposal, 1) float, cuda
                 scores_pred = torch.sigmoid(scores.view(-1))
 
@@ -128,14 +113,14 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     semantic_pred[proposals_idx[:, 1][proposals_offset[:-1].long()].long()]]  # (nProposal), long
 
                 ##### score threshold
-                score_mask = (scores_pred > CONF.TEST_SCORE_THRESH)
+                score_mask = (scores_pred > cfg.TEST_SCORE_THRESH)
                 scores_pred = scores_pred[score_mask]
                 proposals_pred = proposals_pred[score_mask]
                 semantic_id = semantic_id[score_mask]
 
                 ##### npoint threshold
                 proposals_pointnum = proposals_pred.sum(1)
-                npoint_mask = (proposals_pointnum > CONF.TEST_NPOINT_THRESH)
+                npoint_mask = (proposals_pointnum > cfg.TEST_NPOINT_THRESH)
                 scores_pred = scores_pred[npoint_mask]
                 proposals_pred = proposals_pred[npoint_mask]
                 semantic_id = semantic_id[npoint_mask]
@@ -152,12 +137,13 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     proposals_pn_v = proposals_pointnum.unsqueeze(0).repeat(proposals_pointnum.shape[0], 1)
                     cross_ious = intersection / (proposals_pn_h + proposals_pn_v - intersection)
                     pick_idxs = non_max_suppression(cross_ious.cpu().numpy(), scores_pred.cpu().numpy(),
-                                                    CONF.TEST_NMS_THRESH)  # int, (nCluster, N)
+                                                    cfg.TEST_NMS_THRESH)  # int, (nCluster, N)
                 clusters = proposals_pred[pick_idxs]
                 cluster_scores = scores_pred[pick_idxs]
                 cluster_semantic_id = semantic_id[pick_idxs]
 
                 nclusters = clusters.shape[0]
+                print("Clusters: ", nclusters)
 
                 #bounding box 
                 b_boxes = []
@@ -206,95 +192,99 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     b_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001]), bbox['score']))
 
 
-                # # ground truth boxes
-                # gt_file = os.path.join(CONF.data_root, CONF.dataset, CONF.split + '_gt', test_scene_name + '.txt')
-                # gt_instances = eval.get_gt_instances_from_file(gt_file)
-                # n_instances = [len(gt_instances[k]) for k in gt_instances]
-                # # logger.info(f"no. of gt_instances = {sum(n_instances)}")
-                # gt_boxes = []
-                # gt_boxes_map = []
-                # for k in gt_instances:
-                #     instances = gt_instances[k]
-                #     if len(instances)==0:
-                #         continue
-                #     for inst in instances:
-                #         vertice_indices = inst['vertices']
-                #         # logger.info(f"n_vertices = {len(vertice_indices)}")
-                #         vertice_coords = point_coords[vertice_indices]
-                #         # logger.info(f"instance coords shape: {vertice_coords.shape}")
-                #         center_x,center_y,center_z = vertice_coords.mean(0)
-                #         x_max,y_max,z_max = vertice_coords.max(0)
-                #         x_min,y_min,z_min = vertice_coords.min(0)
-                #         length = abs(x_max-x_min)
-                #         breadth = abs(y_max-y_min)
-                #         height = abs(z_max-z_min)
-                #         bbox={"center_x":center_x,
-                #             "center_y":center_y,
-                #             "center_z":center_z,
-                #             "length":length,
-                #             "breadth":breadth,
-                #             "height":height,
-                #             "label":inst["label_id"]}
+                # ground truth boxes
+                gt_file = os.path.join(cfg.data_root, 'scannetv2', cfg.split + '_gt', test_scene_name + '.txt')
+                gt_instances = eval.get_gt_instances_from_file(gt_file)
+                n_instances = [len(gt_instances[k]) for k in gt_instances]
+                logger.info(f"no. of gt_instances = {sum(n_instances)}")
+                gt_boxes = []
+                gt_boxes_map = []
+                for k in gt_instances:
+                    instances = gt_instances[k]
+                    if len(instances)==0:
+                        continue
+                    for inst in instances:
+                        vertice_indices = inst['vertices']
+                        # logger.info(f"n_vertices = {len(vertice_indices)}")
+                        vertice_coords = point_coords[vertice_indices]
+                        # logger.info(f"instance coords shape: {vertice_coords.shape}")
+                        center_x,center_y,center_z = vertice_coords.mean(0)
+                        x_max,y_max,z_max = vertice_coords.max(0)
+                        x_min,y_min,z_min = vertice_coords.min(0)
+                        length = abs(x_max-x_min)
+                        breadth = abs(y_max-y_min)
+                        height = abs(z_max-z_min)
+                        bbox={"center_x":center_x,
+                            "center_y":center_y,
+                            "center_z":center_z,
+                            "length":length,
+                            "breadth":breadth,
+                            "height":height,
+                            "label":inst["label_id"]}
 
-                #         gt_boxes.append(bbox)
-                #         x_000 = [center_x - length/2, center_y - breadth/2, center_z-height/2]
-                #         x_100 = [center_x + length/2, center_y - breadth/2, center_z-height/2]
-                #         x_110 = [center_x + length/2, center_y + breadth/2, center_z-height/2]
-                #         x_010 = [center_x - length/2, center_y + breadth/2, center_z-height/2]
-                #         x_001 = [center_x - length/2, center_y - breadth/2, center_z+height/2]
-                #         x_101 = [center_x + length/2, center_y - breadth/2, center_z+height/2]
-                #         x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
-                #         x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
-                #         gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
+                        gt_boxes.append(bbox)
+                        x_000 = [center_x - length/2, center_y - breadth/2, center_z-height/2]
+                        x_100 = [center_x + length/2, center_y - breadth/2, center_z-height/2]
+                        x_110 = [center_x + length/2, center_y + breadth/2, center_z-height/2]
+                        x_010 = [center_x - length/2, center_y + breadth/2, center_z-height/2]
+                        x_001 = [center_x - length/2, center_y - breadth/2, center_z+height/2]
+                        x_101 = [center_x + length/2, center_y - breadth/2, center_z+height/2]
+                        x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
+                        x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
+                        gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
 
-                # ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
+                ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
-                # ##### prepare for evaluation
-                # if CONF.eval:
-                #     pred_info = {}
-                #     pred_info['conf'] = cluster_scores.cpu().numpy()
-                #     pred_info['label_id'] = cluster_semantic_id.cpu().numpy()
-                #     pred_info['mask'] = clusters.cpu().numpy()
-                #     gt_file = os.path.join(CONF.data_root, CONF.dataset, CONF.split + '_gt', test_scene_name + '.txt')
-                #     gt2pred, pred2gt = eval.assign_instances_for_scan(test_scene_name, pred_info, gt_file)
-                #     matches[test_scene_name] = {}
-                #     matches[test_scene_name]['gt'] = gt2pred
-                #     matches[test_scene_name]['pred'] = pred2gt
+                ##### prepare for evaluation
+                if cfg.eval:
+                    pred_info = {}
+                    pred_info['conf'] = cluster_scores.cpu().numpy()
+                    pred_info['label_id'] = cluster_semantic_id.cpu().numpy()
+                    pred_info['mask'] = clusters.cpu().numpy()
+                    gt_file = os.path.join(cfg.data_root, 'scannetv2', cfg.split + '_gt', test_scene_name + '.txt')
+                    gt2pred, pred2gt = eval.assign_instances_for_scan(test_scene_name, pred_info, gt_file)
+                    matches[test_scene_name] = {}
+                    matches[test_scene_name]['gt'] = gt2pred
+                    matches[test_scene_name]['pred'] = pred2gt
+            
+            try:
+                ##### save files
+                start3 = time.time()
+                if cfg.save_semantic:
+                    os.makedirs(os.path.join(result_dir, 'semantic'), exist_ok=True)
+                    semantic_np = semantic_pred.cpu().numpy()
+                    np.save(os.path.join(result_dir, 'semantic', test_scene_name + '.npy'), semantic_np)
 
-            ##### save files
-            start3 = time.time()
-            if CONF.save_semantic:
-                os.makedirs(os.path.join(result_dir, 'semantic'), exist_ok=True)
-                semantic_np = semantic_pred.cpu().numpy()
-                np.save(os.path.join(result_dir, 'semantic', test_scene_name + '.npy'), semantic_np)
+                if cfg.save_pt_offsets:
+                    os.makedirs(os.path.join(result_dir, 'coords_offsets'), exist_ok=True)
+                    pt_offsets_np = pt_offsets.cpu().numpy()
+                    coords_np = batch['locs_float'].numpy()
+                    coords_offsets = np.concatenate((coords_np, pt_offsets_np), 1)  # (N, 6)
+                    np.save(os.path.join(result_dir, 'coords_offsets', test_scene_name + '.npy'), coords_offsets)
 
-            if CONF.save_pt_offsets:
-                os.makedirs(os.path.join(result_dir, 'coords_offsets'), exist_ok=True)
-                pt_offsets_np = pt_offsets.cpu().numpy()
-                coords_np = batch['locs_float'].numpy()
-                coords_offsets = np.concatenate((coords_np, pt_offsets_np), 1)  # (N, 6)
-                np.save(os.path.join(result_dir, 'coords_offsets', test_scene_name + '.npy'), coords_offsets)
+                if(epoch > cfg.prepare_epochs and cfg.save_instance):
+                    f = open(os.path.join(result_dir, test_scene_name + '.txt'), 'w')
+                    f1 = open(os.path.join(result_dir, test_scene_name +'_bbox'+ '.txt'), 'w')
 
-            if(epoch > CONF.prepare_epochs and CONF.save_instance):
-                f = open(os.path.join(result_dir, test_scene_name + '.txt'), 'w')
-                f1 = open(os.path.join(result_dir, test_scene_name +'_bbox'+ '.txt'), 'w')
-                for proposal_id in range(nclusters):
-                    clusters_i = clusters[proposal_id].cpu().numpy()  # (N)
-                    semantic_label = np.argmax(np.bincount(semantic_pred[np.where(clusters_i == 1)[0]].cpu()))
-                    score = cluster_scores[proposal_id]
-                    box = b_boxes[proposal_id]
-                    f1.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
-                    f.write('predicted_masks/{}_{:03d}.txt {} {:.4f}'.format(test_scene_name, proposal_id, semantic_label_idx[semantic_label], score))
-                    if proposal_id < nclusters - 1:
-                        f.write('\n')
-                    np.savetxt(os.path.join(result_dir, 'predicted_masks', test_scene_name + '_%03d.txt' % (proposal_id)), clusters_i, fmt='%d')
-                
-                # with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
-                #     for box in gt_boxes:
-                #         f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
-                
-                f.close()
-                f1.close()
+                    for proposal_id in range(nclusters):
+                        clusters_i = clusters[proposal_id].cpu().numpy()  # (N)
+                        semantic_label = np.argmax(np.bincount(semantic_pred[np.where(clusters_i == 1)[0]].cpu()))
+                        score = cluster_scores[proposal_id]
+                        box = b_boxes[proposal_id]
+                        f1.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
+                        f.write('predicted_masks/{}_{:03d}.txt {} {:.4f}'.format(test_scene_name, proposal_id, semantic_label_idx[semantic_label], score))
+                        if proposal_id < nclusters - 1:
+                            f.write('\n')
+                        np.savetxt(os.path.join(result_dir, 'predicted_masks', test_scene_name + '_%03d.txt' % (proposal_id)), clusters_i, fmt='%d')
+                    
+                    with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
+                        for box in gt_boxes:
+                            f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
+                    
+                    f.close()
+                    f1.close()
+            except:
+                pass
 
 
             end3 = time.time() - start3
@@ -307,11 +297,11 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 "instance iter: {}/{} point_num: {} ncluster: {} time: total {:.2f}s inference {:.2f}s save {:.2f}s".format(
                     i + 1, len(test_dataset), N, nclusters, end, end1, end3))
         
-        # res = ap_calculator.compute_metrics()
-        # print(json.dumps(res, indent = 4))
+        res = ap_calculator.compute_metrics()
+        print(json.dumps(res, indent = 4))
 
         ##### evaluation
-        if CONF.eval:
+        if cfg.eval:
             ap_scores = eval.evaluate_matches(matches)
             avgs = eval.compute_averages(ap_scores)
             eval.print_results(avgs)
@@ -328,7 +318,6 @@ def non_max_suppression(ious, scores, threshold):
         ixs = np.delete(ixs, remove_ixs)
         ixs = np.delete(ixs, 0)
     return np.array(pick, dtype=np.int32)
-
 
 
 def eval_epoch(val_loader, model, model_fn, epoch, writer):
@@ -371,6 +360,7 @@ def get_scannet_scene_list(split):
     scene_list = sorted([line.rstrip() for line in open(os.path.join(CONF.PATH.SCANNET_META, "scannetv2_{}.txt".format(split)))])
 
     return scene_list
+
 def get_scanrefer(args):
     print("aargs", args)
     if args.dataset == "ScanRefer":
@@ -384,10 +374,14 @@ def get_scanrefer(args):
     else:
         raise ValueError("Invalid dataset.")
 
+    # import pdb
+    # pdb.set_trace()
+
     if args.debug:
-        scanrefer_train = [SCANREFER_TRAIN[0]]
-        scanrefer_eval_train = [SCANREFER_TRAIN[0]]
-        scanrefer_eval_val = [SCANREFER_TRAIN[0]]
+        idx = [i for i, element in enumerate(SCANREFER_TRAIN) if element['scene_id'] == 'scene0296_00'][0]
+        scanrefer_train = [SCANREFER_TRAIN[idx]]
+        scanrefer_eval_train = [SCANREFER_TRAIN[idx]]
+        scanrefer_eval_val = [SCANREFER_TRAIN[idx]]
 
     # import pdb
     # pdb.set_trace()
@@ -486,10 +480,7 @@ if __name__ == '__main__':
 
 
 
-
-        ##### init
-
-    cfg = CONF
+    ##### init
     init()
 
     ##### model
@@ -508,13 +499,6 @@ if __name__ == '__main__':
     # logger.info(model)
     logger.info('#classifier parameters: {}'.format(sum([x.nelement() for x in model.parameters()])))
 
-    ##### optimizer
-    if CONF.optim == 'Adam':
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.lr)
-    elif CONF.optim == 'SGD':
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=CONF.lr, momentum=CONF.momentum,
-                              weight_decay=CONF.weight_decay)
-
     ##### model_fn (criterion)
     model_fn = model_fn_decorator(test=True)
 
@@ -529,6 +513,6 @@ if __name__ == '__main__':
                             use_cuda)  # resume from the latest epoch, or specify the epoch to restore
 
     data_name = 'scannet'
-    test(model, model_fn, data_name, train_data_loader, scanrefer_train, 200)
+    test(model, model_fn, data_name, train_data_loader, scanrefer_train, CONF.test_epoch)
     
 
