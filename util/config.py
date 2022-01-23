@@ -28,7 +28,7 @@ def get_parser():
     # parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     # parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
 
-    parser.add_argument("--num_points", type=int, default=300000, help="Point Number [default: 40000]")
+    parser.add_argument("--num_points", type=int, default=50000, help="Point Number [default: 40000]")
     # parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     # parser.add_argument("--num_locals", type=int, default=-1, help="Number of local objects [default: -1]")
     # parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")

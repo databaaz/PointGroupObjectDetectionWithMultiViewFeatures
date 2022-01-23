@@ -22,7 +22,7 @@ import scipy
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 # from lib.config import CONF
-from util.config import CONF as CONF
+from util.config import cfg as CONF
 from util.pc_utils import random_sampling, rotx, roty, rotz
 from util.box_util import get_3d_box, get_3d_box_batch
 from data.scannet.model_util_scannet import rotate_aligned_boxes, ScannetDatasetConfig, rotate_aligned_boxes_along_axis
@@ -251,7 +251,7 @@ class ReferenceDataset(Dataset):
         for scene_id in self.scene_list:
             self.scene_data[scene_id] = {}
             # self.scene_data[scene_id]["mesh_vertices"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_vert.npy")
-            self.scene_data[scene_id]["mesh_vertices"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_vert.npy") # axis-aligned #(N,9)
+            self.scene_data[scene_id]["mesh_vertices"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_aligned_vert.npy") # axis-aligned #(N,9)
             self.scene_data[scene_id]["instance_labels"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_ins_label.npy") 
             self.scene_data[scene_id]["semantic_labels"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_sem_label.npy")
             # self.scene_data[scene_id]["instance_bboxes"] = np.load(os.path.join(CONF.PATH.SCANNET_DATA, scene_id)+"_bbox.npy")
@@ -1766,6 +1766,7 @@ def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
         instance_label = data_dict["instance_labels"].astype(np.int32)
 
         xyz_origin = pc[:,:3]
+        print(xyz_origin.shape)
         features = pc[:,3:]
         # xyz_origin = item[:, :3]
         # rgb = item[:, 3:6]

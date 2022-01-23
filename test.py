@@ -182,59 +182,59 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     b_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001]), bbox['score']))
 
                 # ground truth boxes
-                gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
-                gt_instances = eval.get_gt_instances_from_file(gt_file)
-                n_instances = [len(gt_instances[k]) for k in gt_instances]
-                logger.info(f"no. of gt_instances = {sum(n_instances)}")
-                gt_boxes = []
-                gt_boxes_map = []
-                for k in gt_instances:
-                    instances = gt_instances[k]
-                    if len(instances)==0:
-                        continue
-                    for inst in instances:
-                        vertice_indices = inst['vertices']
-                        # logger.info(f"n_vertices = {len(vertice_indices)}")
-                        vertice_coords = point_coords[vertice_indices]
-                        # logger.info(f"instance coords shape: {vertice_coords.shape}")
-                        center_x,center_y,center_z = vertice_coords.mean(0)
-                        x_max,y_max,z_max = vertice_coords.max(0)
-                        x_min,y_min,z_min = vertice_coords.min(0)
-                        length = abs(x_max-x_min)
-                        breadth = abs(y_max-y_min)
-                        height = abs(z_max-z_min)
-                        bbox={"center_x":center_x,
-                            "center_y":center_y,
-                            "center_z":center_z,
-                            "length":length,
-                            "breadth":breadth,
-                            "height":height,
-                            "label":inst["label_id"]}
+                # gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
+                # gt_instances = eval.get_gt_instances_from_file(gt_file)
+                # n_instances = [len(gt_instances[k]) for k in gt_instances]
+                # logger.info(f"no. of gt_instances = {sum(n_instances)}")
+                # gt_boxes = []
+                # gt_boxes_map = []
+                # for k in gt_instances:
+                #     instances = gt_instances[k]
+                #     if len(instances)==0:
+                #         continue
+                #     for inst in instances:
+                #         vertice_indices = inst['vertices']
+                #         # logger.info(f"n_vertices = {len(vertice_indices)}")
+                #         vertice_coords = point_coords[vertice_indices]
+                #         # logger.info(f"instance coords shape: {vertice_coords.shape}")
+                #         center_x,center_y,center_z = vertice_coords.mean(0)
+                #         x_max,y_max,z_max = vertice_coords.max(0)
+                #         x_min,y_min,z_min = vertice_coords.min(0)
+                #         length = abs(x_max-x_min)
+                #         breadth = abs(y_max-y_min)
+                #         height = abs(z_max-z_min)
+                #         bbox={"center_x":center_x,
+                #             "center_y":center_y,
+                #             "center_z":center_z,
+                #             "length":length,
+                #             "breadth":breadth,
+                #             "height":height,
+                #             "label":inst["label_id"]}
 
-                        gt_boxes.append(bbox)
-                        x_000 = [center_x - length/2, center_y - breadth/2, center_z-height/2]
-                        x_100 = [center_x + length/2, center_y - breadth/2, center_z-height/2]
-                        x_110 = [center_x + length/2, center_y + breadth/2, center_z-height/2]
-                        x_010 = [center_x - length/2, center_y + breadth/2, center_z-height/2]
-                        x_001 = [center_x - length/2, center_y - breadth/2, center_z+height/2]
-                        x_101 = [center_x + length/2, center_y - breadth/2, center_z+height/2]
-                        x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
-                        x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
-                        gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
+                #         gt_boxes.append(bbox)
+                #         x_000 = [center_x - length/2, center_y - breadth/2, center_z-height/2]
+                #         x_100 = [center_x + length/2, center_y - breadth/2, center_z-height/2]
+                #         x_110 = [center_x + length/2, center_y + breadth/2, center_z-height/2]
+                #         x_010 = [center_x - length/2, center_y + breadth/2, center_z-height/2]
+                #         x_001 = [center_x - length/2, center_y - breadth/2, center_z+height/2]
+                #         x_101 = [center_x + length/2, center_y - breadth/2, center_z+height/2]
+                #         x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
+                #         x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
+                #         gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
 
-                ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
+                # ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
                 ##### prepare for evaluation
-                if CONF.eval:
-                    pred_info = {}
-                    pred_info['conf'] = cluster_scores.cpu().numpy()
-                    pred_info['label_id'] = cluster_semantic_id.cpu().numpy()
-                    pred_info['mask'] = clusters.cpu().numpy()
-                    gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
-                    gt2pred, pred2gt = eval.assign_instances_for_scan(test_scene_name, pred_info, gt_file)
-                    matches[test_scene_name] = {}
-                    matches[test_scene_name]['gt'] = gt2pred
-                    matches[test_scene_name]['pred'] = pred2gt
+                # if CONF.eval:
+                #     pred_info = {}
+                #     pred_info['conf'] = cluster_scores.cpu().numpy()
+                #     pred_info['label_id'] = cluster_semantic_id.cpu().numpy()
+                #     pred_info['mask'] = clusters.cpu().numpy()
+                #     gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
+                #     gt2pred, pred2gt = eval.assign_instances_for_scan(test_scene_name, pred_info, gt_file)
+                #     matches[test_scene_name] = {}
+                #     matches[test_scene_name]['gt'] = gt2pred
+                #     matches[test_scene_name]['pred'] = pred2gt
             
             try:
                 ##### save files
@@ -268,9 +268,9 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                             f.write('\n')
                         np.savetxt(os.path.join(result_dir, 'predicted_masks', test_scene_name + '_%03d.txt' % (proposal_id)), clusters_i, fmt='%d')
                     
-                    with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
-                        for box in gt_boxes:
-                            f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
+                    # with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
+                    #     for box in gt_boxes:
+                    #         f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
                     
                     f.close()
                     f1.close()
@@ -502,6 +502,11 @@ if __name__ == '__main__':
     ##### resume
     utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
                             use_cuda, f=CONF.pretrain)  # resume from the latest epoch, or specify the epoch to restore
+
+    batch = next(iter(train_data_loader))
+
+    import pdb
+    pdb.set_trace()
 
     data_name = 'scannet'
     test(model, model_fn, data_name, train_data_loader, scanrefer_train, CONF.test_epoch)
