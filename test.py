@@ -8,13 +8,11 @@ import torch.optim as optim
 import time, sys, os, random
 from tensorboardX import SummaryWriter
 import numpy as np
-import json
 from torch.utils.data import DataLoader
 
 from util.config import cfg as CONF
 from util.log import logger
 import util.utils as utils
-from data.scannetv2_inst import collate_train, collate_val
 from data.scannet.model_util_scannet import ScannetDatasetConfig
 from data.scanrefer import get_dataloader
 
@@ -24,12 +22,10 @@ CONF.task = 'test'
 from util.log import logger
 import util.utils as utils
 import util.eval as eval
-from data.scannetv2_inst import collate_test
 from util.map.ap_helper import APCalculator
 import itertools
 import json
 
-import argparse
 from copy import deepcopy
 
 
@@ -259,6 +255,8 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     f = open(os.path.join(result_dir, test_scene_name + '.txt'), 'w')
                     f1 = open(os.path.join(result_dir, test_scene_name +'_bbox'+ '.txt'), 'w')
 
+                    print(f'Writing output to {str(f1.name)}')
+
                     for proposal_id in range(nclusters):
                         clusters_i = clusters[proposal_id].cpu().numpy()  # (N)
                         semantic_label = np.argmax(np.bincount(semantic_pred[np.where(clusters_i == 1)[0]].cpu()))
@@ -355,7 +353,7 @@ def get_scannet_scene_list(split):
     return scene_list
 
 def get_scanrefer(args):
-    print("aargs", args)
+    print("args", args)
     if args.dataset == "ScanRefer":
         scanrefer_train = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
         scanrefer_eval_train = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
@@ -503,7 +501,7 @@ if __name__ == '__main__':
 
     ##### resume
     utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
-                            use_cuda)  # resume from the latest epoch, or specify the epoch to restore
+                            use_cuda, f=CONF.pretrain)  # resume from the latest epoch, or specify the epoch to restore
 
     data_name = 'scannet'
     test(model, model_fn, data_name, train_data_loader, scanrefer_train, CONF.test_epoch)
