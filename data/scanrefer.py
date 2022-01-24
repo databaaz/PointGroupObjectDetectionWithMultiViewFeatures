@@ -1763,7 +1763,7 @@ def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
     locs = []
     locs_float = []
     feats = []
-
+    bboxes = [] #gt bbox
     batch_offsets = [0]
 
     for i, item in enumerate(batch):
@@ -1797,6 +1797,7 @@ def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
         locs.append(torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1))
         locs_float.append(torch.from_numpy(xyz_middle))
         feats.append(torch.from_numpy(features))
+        bboxes.append(data_dict["instance_bboxes"])
 
     ### merge all the scenes in the batch
     batch_offsets = torch.tensor(batch_offsets, dtype=torch.int)  # int (B+1)
@@ -1810,14 +1811,13 @@ def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
     ### voxelize
     voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, batch_size, voxel_mode)
 
-    #gt_bbox
-    gt_bboxes = data_dict["instance_bboxes"]
+    
     
 
     return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
             'locs_float': locs_float, 'feats': feats, 'point_coords':xyz_origin,
             'offsets': batch_offsets, 'spatial_shape': spatial_shape,
-            'gt_bbox': gt_bboxes}
+            'gt_bbox': bboxes}
 
 
 

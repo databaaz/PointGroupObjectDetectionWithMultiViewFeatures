@@ -185,7 +185,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 logger.info(f"no. of gt_instances = {len(batch['gt_bbox'])}")
                 gt_boxes = []
                 gt_boxes_map = []
-                for row in batch["gt_bbox"]:
+                for row in batch["gt_bbox"][0]:
                     center_x, center_y, center_z = row[:3]
                     length, breadth, height = row[3:6]
                     label = row[-2]
@@ -207,6 +207,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
                     x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
                     gt_boxes_map.append((label, np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
+                ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
                 # old ground truth boxes
                 # gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
