@@ -1509,8 +1509,10 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         data_dict["locs_float"] = None#ToDo
         data_dict["feats"] = None#ToDo
         remapper = np.ones(150) * (-100)
-        for i, x in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]):
-            remapper[x] = i
+        # for i, x in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]):
+        #     remapper[x] = i
+        for i, x in enumerate(self.nyu40ids2class.keys()):
+            remapper[x] = self.nyu40ids2class[x]
         remapper = np.array(remapper)
         data_dict["labels"] = remapper[semantic_labels]
         data_dict["instance_labels"] = instance_labels#ToDo
@@ -1518,6 +1520,10 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         data_dict["instance_pointnum"] = None#ToDo
         data_dict["offsets"] = None#ToDo
         data_dict["spatial_shape"] = None#ToDo
+        bboxes = self.instance_bboxes.copy()
+        bboxes[:,-2] = remapper[bboxes[:,-2]]
+        data_dict["instance_bboxes"] = bboxes
+
         
 
         # For Scan2Cap
