@@ -1824,21 +1824,23 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
     )
     # Scan2C: dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    # dataloader = DataLoader(dataset, batch_size=args.batch_size,
-    #                         collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
-    #                                                                 voxel_mode=CONF.mode,
-    #                                                                 max_npoint=CONF.max_npoint,
-    #                                                                 batch_size=CONF.batch_size),
-    #                         num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
-    #                         pin_memory=True)
-
-    # test_dataset = Dataset(split='train', test_mode=True)  # reset split to val
-    dataloader = DataLoader(dataset, batch_size=1,
-                                    collate_fn=lambda batch: collate_test(batch, CONF.scale, CONF.full_scale,
+    if split == 'train':
+        dataloader = DataLoader(dataset, batch_size=args.batch_size,
+                                collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
                                                                         voxel_mode=CONF.mode,
-                                                                        test_split='train',
+                                                                        max_npoint=CONF.max_npoint,
                                                                         batch_size=CONF.batch_size),
-                                    num_workers=CONF.test_workers,
-                                    shuffle=False, drop_last=False, pin_memory=True)
+                                num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
+                                pin_memory=True)
+    elif split == 'test':
+        dataloader = DataLoader(dataset, batch_size=1,
+                                collate_fn=lambda batch: collate_test(batch, CONF.scale, CONF.full_scale,
+                                                                    voxel_mode=CONF.mode,
+                                                                    test_split='train',
+                                                                    batch_size=CONF.batch_size),
+                                num_workers=CONF.test_workers,
+                                shuffle=False, drop_last=False, pin_memory=True)
+    else:
+        raise ValueError('dataloader not specified')
 
     return dataloader                                    
