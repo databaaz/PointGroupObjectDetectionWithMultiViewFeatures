@@ -1511,8 +1511,8 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         remapper = np.ones(150) * (-100)
         # for i, x in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]):
         #     remapper[x] = i
-        for i, x in enumerate(self.nyu40ids2class.keys()):
-            remapper[x] = self.nyu40ids2class[x]
+        for i, x in enumerate(DC.nyu40id2class.keys()):
+            remapper[x] = DC.nyu40id2class[x]
         remapper = np.array(remapper)
         data_dict["labels"] = remapper[semantic_labels]
         data_dict["instance_labels"] = instance_labels#ToDo
@@ -1520,8 +1520,8 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         data_dict["instance_pointnum"] = None#ToDo
         data_dict["offsets"] = None#ToDo
         data_dict["spatial_shape"] = None#ToDo
-        bboxes = self.instance_bboxes.copy()
-        bboxes[:,-2] = remapper[bboxes[:,-2]]
+        bboxes = instance_bboxes.copy()
+        bboxes[:,-2] = remapper[bboxes[:,-2].astype(int)]
         data_dict["instance_bboxes"] = bboxes
 
         
@@ -1562,6 +1562,7 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         data_dict["unique_multiple"] = np.array(self.unique_multiple_lookup[scene_id][str(object_id)][ann_id]).astype(np.int64)
         data_dict["pcl_color"] = pcl_color
         data_dict["load_time"] = time.time() - start
+        import pdb;pdb.set_trace()
 
         return data_dict
 
@@ -1752,6 +1753,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
     ### voxelize
     voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, batch_size, voxel_mode)
 
+
     return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
             'locs_float': locs_float, 'feats': feats, 'labels': labels, 'instance_labels': instance_labels,
             'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'point_coords': xyz_origin,
@@ -1808,9 +1810,14 @@ def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
     ### voxelize
     voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, batch_size, voxel_mode)
 
+    #gt_bbox
+    gt_bboxes = data_dict["instance_bboxes"]
+    
+
     return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
             'locs_float': locs_float, 'feats': feats, 'point_coords':xyz_origin,
-            'offsets': batch_offsets, 'spatial_shape': spatial_shape}
+            'offsets': batch_offsets, 'spatial_shape': spatial_shape,
+            'gt_bbox': gt_bboxes}
 
 
 
@@ -1844,7 +1851,7 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
                                                                         voxel_mode=CONF.mode,
                                                                         test_split='train',
                                                                         batch_size=CONF.batch_size),
-                                    num_workers=CONF.test_workers,
+                                    # num_workers=CONF.test_workers,
                                     shuffle=False, drop_last=False, pin_memory=True)
 
     return dataloader                                    
