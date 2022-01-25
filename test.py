@@ -71,6 +71,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
         # gt_all: map of {img_id: [(classname, bbox)]}
 
         for i, batch in enumerate(test_dataloader):  # itertools
+
             print(i)
             N = batch['feats'].shape[0]
             point_coords = batch['point_coords']#.cpu.numpy()
@@ -149,20 +150,28 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     # logger.info(f"points in cluster from matrix {c.sum()}")
                     cluster_points = point_coords[c.astype(bool)]
                     # logger.info(f"points in cluster: {cluster_points.shape}")
-                    center_x,center_y,center_z = cluster_points.mean(0)
+                    # center_x,center_y,center_z = cluster_points.mean(0)
 
                     # import pdb
                     # pdb.set_trace()
 
                     x_max,y_max,z_max = cluster_points.max(0)
                     x_min,y_min,z_min = cluster_points.min(0)
-                    length = abs(x_max-x_min)
-                    breadth = abs(y_max-y_min)
-                    height = abs(z_max-z_min)
+
+                    center_x = (x_max + x_min) / 2
+                    center_y = (y_max + y_min) / 2
+                    center_z = (z_max + z_min) / 2
+
+                    # if z_min < 0:
+                    #     raise ValueError('z_min is neg')
+
+                    length = (x_max-x_min)
+                    breadth = (y_max-y_min)
+                    height = (z_max-z_min)
                     # logger.info(f"max_c:{(x_max,y_max,z_max)}\nmin_c:{(x_min,y_min,z_min)}\ncenter_c={center_x,center_y,center_z}")
-                    bbox={"center_x":center_x,
-                    "center_y":center_y,
-                    "center_z":center_z,
+                    bbox={"center_x": center_x,
+                    "center_y": center_y,
+                    "center_z": center_z,
                     "length":length,
                     "breadth":breadth,
                     "height":height,
@@ -182,7 +191,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     b_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001]), bbox['score']))
 
                 # new gt bbox
-                logger.info(f"no. of gt_instances = {len(batch['gt_bbox'])}")
+                logger.info(f"no. of gt_instances = {len(batch['gt_bbox'][0])}")
                 gt_boxes = []
                 gt_boxes_map = []
                 for row in batch["gt_bbox"][0]:
@@ -207,7 +216,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     x_111 = [center_x + length/2, center_y + breadth/2, center_z+height/2]
                     x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
                     gt_boxes_map.append((label, np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
-                ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
                 # old ground truth boxes
                 # gt_file = os.path.join(CONF.data_root, 'scannetv2', CONF.split + '_gt', test_scene_name + '.txt')
@@ -250,9 +258,14 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 #         x_011 = [center_x - length/2, center_y + breadth/2, center_z+height/2]
                 #         gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
 
-                # ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
+                ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
 
-                ##### prepare for evaluation
+                print('step passed')
+
+                import pdb
+                pdb.set_trace()
+
+                #### prepare for evaluation
                 # if CONF.eval:
                 #     pred_info = {}
                 #     pred_info['conf'] = cluster_scores.cpu().numpy()
@@ -296,9 +309,9 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                             f.write('\n')
                         np.savetxt(os.path.join(result_dir, 'predicted_masks', test_scene_name + '_%03d.txt' % (proposal_id)), clusters_i, fmt='%d')
                     
-                    # with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
-                    #     for box in gt_boxes:
-                    #         f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
+                    with open(os.path.join(result_dir, test_scene_name +'_gtbbox'+ '.txt'), 'w') as f2:
+                        for box in gt_boxes:
+                            f2.write(f"{box['center_x']},{box['center_y']},{box['center_z']},{box['length']},{box['breadth']},{box['height']},{box['label']}\n")
                     
                     f.close()
                     f1.close()
@@ -524,8 +537,8 @@ if __name__ == '__main__':
     writer = SummaryWriter(os.path.join(CONF.exp_path, 'logs'), flush_secs=1)
 
     scanrefer_train, scanrefer_eval_train, scanrefer_eval_val, all_scene_list = get_scanrefer(CONF)
-    train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
-    val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
+    # train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)
+    val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "test", DC, True, SCAN2CAD_ROTATION)
 
     ##### resume
     utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
@@ -537,6 +550,6 @@ if __name__ == '__main__':
     # pdb.set_trace()
 
     data_name = 'scannet'
-    test(model, model_fn, data_name, train_data_loader, scanrefer_train, CONF.test_epoch)
+    test(model, model_fn, data_name, val_data_loader, scanrefer_eval_val, CONF.test_epoch)
     
 
