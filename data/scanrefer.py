@@ -1341,8 +1341,12 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
             # replicate pointgroup behavior
             point_cloud[:,3:6] = point_cloud[:,3:6]/127.5 - 1
             pcl_color = point_cloud[:,3:6]
+        # normalize box centers
+        instance_bboxes[:,:3] = instance_bboxes[:,:3] - point_cloud[:, :3].mean(0)
+        # normalize points
         point_cloud[:,:3] = point_cloud[:,:3] - point_cloud[:, :3].mean(0) # replicate pointgroup behavior
         
+
         if self.use_normal:
             normals = mesh_vertices[:,6:9]
             point_cloud = np.concatenate([point_cloud, normals],1)
@@ -1562,7 +1566,6 @@ class ScannetForScan2CapPointGroupAllPoints(ReferenceDataset):
         data_dict["unique_multiple"] = np.array(self.unique_multiple_lookup[scene_id][str(object_id)][ann_id]).astype(np.int64)
         data_dict["pcl_color"] = pcl_color
         data_dict["load_time"] = time.time() - start
-
         return data_dict
 
 
@@ -1842,7 +1845,8 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
                                                                         voxel_mode=CONF.mode,
                                                                         max_npoint=CONF.max_npoint,
                                                                         batch_size=CONF.batch_size),
-                                num_workers=CONF.train_workers, shuffle=True, sampler=None, drop_last=True,
+                                num_workers=CONF.train_workers,
+                                shuffle=True, sampler=None, drop_last=True,
                                 pin_memory=True)
     elif split == 'test':
         dataloader = DataLoader(dataset, batch_size=1,
