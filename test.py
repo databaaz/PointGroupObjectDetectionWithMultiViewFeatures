@@ -45,8 +45,8 @@ def init():
     os.system('cp {} {}'.format(CONF.config, backup_dir))
 
     global semantic_label_idx, scan2cap_class2semantic
-    semantic_label_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
-    scan2cap_class2semantic = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])#, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+    semantic_label_idx = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+    scan2cap_class2semantic = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])   #, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
 
     logger.info(CONF)
 
@@ -73,10 +73,8 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
         # gt_all: map of {img_id: [(classname, bbox)]}
 
         for i, batch in enumerate(test_dataloader):  # itertools
-
-            print(i)
             N = batch['feats'].shape[0]
-            point_coords = batch['point_coords']#.cpu.numpy()
+            # point_coords = batch['point_coords']#.cpu.numpy() # use reshifted values from preds instead
             # logger.info(f"point_coords shape:{point_coords.shape}")
             # test_scene_name = dataset.test_file_names[int(batch['id'][0])].split('/')[-1][:12]
             test_scene_name = test_dataset[0]['scene_id']
@@ -85,6 +83,8 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             start1 = time.time()
             preds = model_fn(batch, model, epoch)
             end1 = time.time() - start1
+
+            point_coords = preds['point_coords']
 
 
             ##### get predictions (#1 semantic_pred, pt_offsets; #2 scores, proposals_pred)
@@ -170,9 +170,9 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     breadth = (y_max-y_min)
                     height = (z_max-z_min)
                     # logger.info(f"max_c:{(x_max,y_max,z_max)}\nmin_c:{(x_min,y_min,z_min)}\ncenter_c={center_x,center_y,center_z}")
-                    bbox={"center_x": center_x,
-                    "center_y": center_y,
-                    "center_z": center_z,
+                    bbox={"center_x": center_x, #  + batch['point_coords_mean'][0],
+                    "center_y": center_y, #  + batch['point_coords_mean'][1],
+                    "center_z": center_z, #  + batch['point_coords_mean'][2],
                     "length":length,
                     "breadth":breadth,
                     "height":height,
@@ -262,11 +262,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 #         gt_boxes_map.append((bbox['label'], np.array([x_111, x_110, x_010, x_011, x_101, x_100, x_000, x_001])))
 
                 ap_calculator.step(np.array([b_boxes_map]), np.array([gt_boxes_map]))
-
-                print('step passed')
-
-                import pdb
-                pdb.set_trace()
 
                 #### prepare for evaluation
                 # if CONF.eval:
@@ -544,6 +539,7 @@ if __name__ == '__main__':
     val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "test", DC, True, SCAN2CAD_ROTATION)
 
     ##### resume
+
     utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
                             use_cuda, f=CONF.pretrain)  # resume from the latest epoch, or specify the epoch to restore
 

@@ -300,6 +300,7 @@ if __name__ == '__main__':
 
     train_data_loader = get_dataloader(CONF, scanrefer_train, all_scene_list, "train", DC, True, SCAN2CAD_ROTATION)    
     val_data_loader = get_dataloader(CONF, scanrefer_eval_val, all_scene_list, "val", DC, True, SCAN2CAD_ROTATION)
+    # ADD VALIDATOIN DATALOADER
     start_epoch = utils.checkpoint_restore(model, CONF.exp_path, CONF.config.split('/')[-1][:-5],
                                            use_cuda)  # resume from the latest epoch, or specify the epoch to restore
     

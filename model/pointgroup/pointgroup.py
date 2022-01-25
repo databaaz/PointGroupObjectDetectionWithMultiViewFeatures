@@ -368,6 +368,9 @@ def model_fn_decorator(test=False):
                 preds['score'] = scores
                 preds['proposals'] = (proposals_idx, proposals_offset)
 
+        # reshift normalized coordinates
+        preds['point_coords'] = batch['point_coords'] + batch['point_coords_mean']
+
         return preds
 
 
