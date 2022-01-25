@@ -28,7 +28,8 @@ import json
 
 from copy import deepcopy
 
-
+# dave's mapping:
+# {5: 2, 23: 17, 8: 5, 40: 17, 9: 6, 7: 4, 39: 17, 18: 17, 11: 8, 29: 17, 3: 0, 14: 10, 15: 17, 27: 17, 6: 3, 34: 15, 35: 17, 4: 1, 10: 7, 19: 17, 16: 11, 30: 17, 33: 14, 37: 17, 21: 17, 32: 17, 25: 17, 17: 17, 24: 12, 28: 13, 36: 16, 12: 9, 38: 17, 20: 17, 26: 17, 31: 17, 13: 17}
 def init():
     global result_dir
     result_dir = os.path.join(CONF.exp_path, 'result',
@@ -43,8 +44,9 @@ def init():
     os.system('cp {} {}'.format(CONF.dataset_dir, backup_dir))
     os.system('cp {} {}'.format(CONF.config, backup_dir))
 
-    global semantic_label_idx
+    global semantic_label_idx, scan2cap_class2semantic
     semantic_label_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+    scan2cap_class2semantic = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])#, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
 
     logger.info(CONF)
 
@@ -145,7 +147,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                 labels = cluster_semantic_id.cpu().numpy()
                 clusters_np = clusters.cpu().numpy()
 
-
                 for j,c in enumerate(clusters_np):
                     # logger.info(f"points in cluster from matrix {c.sum()}")
                     cluster_points = point_coords[c.astype(bool)]
@@ -198,6 +199,8 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
                     center_x, center_y, center_z = row[:3]
                     length, breadth, height = row[3:6]
                     label = row[-2]
+                    # map em back
+                    label = scan2cap_class2semantic[int(label)]
 
                     bbox={"center_x":center_x,
                             "center_y":center_y,
