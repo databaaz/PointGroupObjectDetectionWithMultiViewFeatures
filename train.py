@@ -266,6 +266,8 @@ if __name__ == '__main__':
 
     writer = SummaryWriter(os.path.join(CONF.exp_path, 'logs'), flush_secs=1)
 
+    print('input channels: ', CONF["input_channel"])
+
     ##### dataset
     # if cfg.dataset == 'scannetv2':
     #     if data_name == 'scannet' or 'scanrefer':
