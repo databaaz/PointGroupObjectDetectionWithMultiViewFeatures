@@ -1390,7 +1390,7 @@ def getCroppedInstLabel(instance_label, valid_idxs):
 
 
 
-def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
+def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size, debug):
     locs = []
     locs_float = []
     feats = []
@@ -1411,19 +1411,21 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         
 
         xyz_origin = pc[:,:3]
-        # ### jitter / flip x / rotation
-        xyz_middle = dataAugment(xyz_origin, True, True, True)
-        
-        # overfitting
-        # xyz_middle = xyz_origin
+
+        if not debug:
+            # ### jitter / flip x / rotation
+            xyz_middle = dataAugment(xyz_origin, True, True, True)
+        else:
+            xyz_middle = xyz_origin
 
         features = pc[:,3:]
         ### scale
         xyz = xyz_middle * scale
 
-        ### elastic
-        xyz = elastic(xyz, 6 * scale // 50, 40 * scale / 50)
-        xyz = elastic(xyz, 20 * scale // 50, 160 * scale / 50)
+        if not debug:
+            ### elastic
+            xyz = elastic(xyz, 6 * scale // 50, 40 * scale / 50)
+            xyz = elastic(xyz, 20 * scale // 50, 160 * scale / 50)
 
         ### offset
         xyz -= xyz.min(0)
@@ -1484,7 +1486,7 @@ def collate_train(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
             'offsets': batch_offsets, 'spatial_shape': spatial_shape}
 
 
-def collate_val(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
+def collate_val(batch, scale, full_scale, voxel_mode, max_npoint, batch_size, debug):
     locs = []
     locs_float = []
     feats = []
@@ -1504,14 +1506,12 @@ def collate_val(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
         instance_label = data_dict["instance_labels"].astype(np.int32)
 
         xyz_origin = pc[:,:3]
-        # ### jitter / flip x / rotation
-        xyz_middle = dataAugment(xyz_origin, False, True, True)
-        
-        # overfitting
-        # xyz_middle = xyz_origin
-        
-        # xyz_middle = pc[:,:3]
-        
+
+        if not debug:
+            # ### jitter / flip x / rotation
+            xyz_middle = dataAugment(xyz_origin, False, True, True)
+        else:
+            xyz_middle = xyz_origin
 
         features = pc[:,3:]
         ### scale
@@ -1581,7 +1581,7 @@ def collate_val(batch, scale, full_scale, voxel_mode, max_npoint, batch_size):
 
 
 
-def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
+def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size, debug):
     locs = []
     locs_float = []
     feats = []
@@ -1596,17 +1596,13 @@ def collate_test(batch, scale, full_scale, voxel_mode, test_split, batch_size):
         instance_label = data_dict["instance_labels"].astype(np.int32)
 
         xyz_origin = pc[:,:3]
-        print(xyz_origin.shape)
         features = pc[:,3:]
-        # xyz_origin = item[:, :3]
-        # rgb = item[:, 3:6]
 
-        ###################################################### REENABLE data augmentation
         ### flip x / rotation
-        xyz_middle = dataAugment(xyz_origin, False, True, True)
-
-        # overfitting
-        # xyz_middle = xyz_origin
+        if not debug:
+            xyz_middle = dataAugment(xyz_origin, False, True, True)
+        else:
+            xyz_middle = xyz_origin
 
         ### scale
         xyz = xyz_middle * scale
@@ -1663,25 +1659,26 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, scan
                                 collate_fn=lambda batch: collate_train(batch, CONF.scale, CONF.full_scale,
                                                                         voxel_mode=CONF.mode,
                                                                         max_npoint=CONF.max_npoint,
-                                                                        batch_size=CONF.batch_size),
+                                                                        batch_size=CONF.batch_size, debug=CONF.debug),
                                 num_workers=CONF.train_workers,
-                                shuffle=True, sampler=None, drop_last=True,
+                                shuffle=True, sampler=None, drop_last=False,
                                 pin_memory=True)
+
     elif split == 'val':
         dataloader = DataLoader(dataset, batch_size=args.batch_size,
                                 collate_fn=lambda batch: collate_val(batch, CONF.scale, CONF.full_scale,
-                                                                        voxel_mode=CONF.mode,
-                                                                        max_npoint=CONF.max_npoint,
-                                                                        batch_size=CONF.batch_size),
+                                                                    voxel_mode=CONF.mode,
+                                                                    max_npoint=CONF.max_npoint,
+                                                                    batch_size=CONF.batch_size, debug=CONF.debug),
                                 num_workers=CONF.train_workers,
-                                shuffle=True, sampler=None, drop_last=True,
+                                shuffle=True, sampler=None, drop_last=False,
                                 pin_memory=True)
     elif split == 'test':
         dataloader = DataLoader(dataset, batch_size=1,
                                 collate_fn=lambda batch: collate_test(batch, CONF.scale, CONF.full_scale,
                                                                     voxel_mode=CONF.mode,
-                                                                    test_split='val',  # 'train' for overfitting
-                                                                    batch_size=CONF.batch_size),
+                                                                    test_split='train',  # 'train' for overfitting, val
+                                                                    batch_size=CONF.batch_size, debug=CONF.debug),
                                 num_workers=CONF.test_workers,
                                 shuffle=False, drop_last=False, pin_memory=True)
     else:
