@@ -60,11 +60,11 @@ GROUP:
   cluster_shift_meanActive: 300
   cluster_npoint_thre: 50
 
-  prepare_epochs: 128
+  prepare_epochs: 169
 
 TEST:
   split: val
-  test_epoch: 384
+  test_epoch: 338
   test_workers: 16
   test_seed: 567
 
@@ -75,7 +75,7 @@ TEST:
   eval: True
   save_semantic: False
   save_pt_offsets: False
-  save_instance: True
+  save_instance: False
 
 # ScanRefer - Scan2CAP
 MULTIVIEW: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data/enet_feats_maxpool.hdf5"

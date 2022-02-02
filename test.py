@@ -77,7 +77,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             # point_coords = batch['point_coords']#.cpu.numpy() # use reshifted values from preds instead
             # logger.info(f"point_coords shape:{point_coords.shape}")
             # test_scene_name = dataset.test_file_names[int(batch['id'][0])].split('/')[-1][:12]
-            test_scene_name = test_dataset[0]['scene_id']
+            test_scene_name = test_dataset[i]['scene_id']
             print(test_scene_name)
 
             start1 = time.time()
@@ -85,7 +85,6 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             end1 = time.time() - start1
 
             point_coords = preds['point_coords']
-
 
             ##### get predictions (#1 semantic_pred, pt_offsets; #2 scores, proposals_pred)
             semantic_scores = preds['semantic']  # (N, nClass=20) float32, cuda
@@ -404,8 +403,7 @@ def get_scanrefer(args):
     else:
         raise ValueError("Invalid dataset.")
 
-    # import pdb
-    # pdb.set_trace()
+    print(args.debug)
 
     if args.debug:
         idx = [i for i, element in enumerate(SCANREFER_TRAIN) if element['scene_id'] == 'scene0296_00'][0]

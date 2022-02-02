@@ -5,17 +5,18 @@ Written by Li Jiang
 
 import torch
 import torch.nn as nn
-import spconv
-from spconv.modules import SparseModule
+import spconv.pytorch as spconv
+
+# from spconv.pytorch.modules import SparseModule
 import functools
 from collections import OrderedDict
 import sys
 sys.path.append('../../')
 
-from lib.pointgroup_ops.functions import pointgroup_ops
+import pointgroup_ops
 from util import utils
 
-class ResidualBlock(SparseModule):
+class ResidualBlock(spconv.modules.SparseModule):
     def __init__(self, in_channels, out_channels, norm_fn, indice_key=None):
         super().__init__()
 
@@ -41,12 +42,13 @@ class ResidualBlock(SparseModule):
         identity = spconv.SparseConvTensor(input.features, input.indices, input.spatial_shape, input.batch_size)
 
         output = self.conv_branch(input)
-        output.features += self.i_branch(identity).features
+        # output.features += self.i_branch(identity).features
+        output = output.replace_feature(output.features + self.i_branch(identity).features)
 
         return output
 
 
-class VGGBlock(SparseModule):
+class VGGBlock(spconv.modules.SparseModule):
     def __init__(self, in_channels, out_channels, norm_fn, indice_key=None):
         super().__init__()
 
@@ -101,7 +103,8 @@ class UBlock(nn.Module):
             output_decoder = self.u(output_decoder)
             output_decoder = self.deconv(output_decoder)
 
-            output.features = torch.cat((identity.features, output_decoder.features), dim=1)
+            # output.features = torch.cat((identity.features, output_decoder.features), dim=1)
+            output = output.replace_feature(torch.cat((identity.features, output_decoder.features), dim=1))
 
             output = self.blocks_tail(output)
 
