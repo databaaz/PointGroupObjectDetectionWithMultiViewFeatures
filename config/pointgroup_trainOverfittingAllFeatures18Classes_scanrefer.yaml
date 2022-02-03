@@ -86,3 +86,4 @@ PATH:
   SCANNET_DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data" #change this later
   SCANNET_META: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/meta_data"
   SCAN2CAD: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/Scan2CAD_dataset"
+

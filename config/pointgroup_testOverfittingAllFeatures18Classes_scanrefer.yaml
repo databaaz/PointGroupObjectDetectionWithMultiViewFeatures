@@ -1,5 +1,5 @@
 GENERAL:
-  task: train # train, test
+  task: test # train, test
   manual_seed: 123
   model_dir: model/pointgroup/pointgroup.py
   dataset_dir: data/scannetv2_inst.py
@@ -64,7 +64,7 @@ GROUP:
 
 TEST:
   split: val
-  test_epoch: 384
+  test_epoch: 500
   test_workers: 16
   test_seed: 567
 

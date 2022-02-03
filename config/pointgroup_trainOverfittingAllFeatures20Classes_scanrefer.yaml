@@ -9,7 +9,7 @@ DATA:
   # dataset: scannetv2
   filename_suffix: _inst_nostuff.pth
 
-  classes: 18
+  classes: 20
   ignore_label: -100
 
   input_channel: 3
@@ -28,7 +28,7 @@ STRUCTURE:
   use_coords: True
 
 TRAIN:
-  epochs: 1000
+  epochs: 800
   train_workers: 16 # data loader workers
   optim: Adam # Adam or SGD
   lr: 0.001
@@ -60,7 +60,7 @@ GROUP:
   cluster_shift_meanActive: 300
   cluster_npoint_thre: 50
 
-  prepare_epochs: 300
+  prepare_epochs: 200
 
 TEST:
   split: val
@@ -86,3 +86,4 @@ PATH:
   SCANNET_DATA: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/scannet_data" #change this later
   SCANNET_META: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/scannet/meta_data"
   SCAN2CAD: "/content/drive/My Drive/simon/Scan2CapWithPointGroup/data/Scan2CAD_dataset"
+

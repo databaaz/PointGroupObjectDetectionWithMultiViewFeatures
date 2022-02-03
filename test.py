@@ -45,8 +45,8 @@ def init():
     os.system('cp {} {}'.format(CONF.config, backup_dir))
 
     global semantic_label_idx, scan2cap_class2semantic
-    semantic_label_idx = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
-    scan2cap_class2semantic = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])   #, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+    semantic_label_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]
+    scan2cap_class2semantic = np.array([1,2,3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39])   #, 18, 19, 20, 21, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
 
     logger.info(CONF)
 
@@ -77,7 +77,7 @@ def test(model, model_fn, data_name, test_dataloader, test_dataset, epoch):
             # point_coords = batch['point_coords']#.cpu.numpy() # use reshifted values from preds instead
             # logger.info(f"point_coords shape:{point_coords.shape}")
             # test_scene_name = dataset.test_file_names[int(batch['id'][0])].split('/')[-1][:12]
-            test_scene_name = test_dataset[0]['scene_id']
+            test_scene_name = test_dataset[i]['scene_id']
             print(test_scene_name)
 
             start1 = time.time()
@@ -404,8 +404,7 @@ def get_scanrefer(args):
     else:
         raise ValueError("Invalid dataset.")
 
-    # import pdb
-    # pdb.set_trace()
+    print(args.debug)
 
     if args.debug:
         idx = [i for i, element in enumerate(SCANREFER_TRAIN) if element['scene_id'] == 'scene0296_00'][0]

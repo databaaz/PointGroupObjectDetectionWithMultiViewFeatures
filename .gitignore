@@ -71,3 +71,6 @@ dataset/scannetv2/val_gt
 dataset/
 env
 dataset
+
+=3.13.2
+Miniconda3*.sh.1

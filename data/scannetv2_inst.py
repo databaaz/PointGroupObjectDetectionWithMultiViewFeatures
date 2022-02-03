@@ -13,7 +13,7 @@ sys.path.append('../')
 
 from util.config import cfg
 from util.log import logger
-from lib.pointgroup_ops.functions import pointgroup_ops
+import pointgroup_ops
 
 
 class Dataset:
